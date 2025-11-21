@@ -59,38 +59,99 @@
             stocksDiv.innerHTML = '';
 
             try {
-                const prompt = `你是專業的台股分析師。請綜合以下因素分析台灣股市，推薦 3 支值得投資的股票：
+                const prompt = `你是一位有20年經驗的資深股市分析師，專注於台股當沖交易。
 
-**重要分析因素：**
-1. **美股影響**：請先查詢昨日美股三大指數（道瓊、那斯達克、S&P500）的表現，台股深受美股影響
-2. **聯準會政策**：請考慮最新的聯準會利率政策、降息預期對台股的影響
-3. **台股基本面**：公司營運狀況、產業趨勢
-4. **技術面**：價格走勢、支撐壓力
+**你的專業背景：**
+- 精通各國股票行情，深入了解當下各國經濟局勢
+- 對台股研究透徹，擅長K線圖組合分析
+- 每日查詢前十大各國財經新聞（Bloomberg、Reuters、CNBC、MarketWatch等）
+- 使用TradingView、Yahoo Finance、Finviz等專業工具進行技術分析
 
-**分析步驟：**
-1. 先說明昨日美股表現（漲跌幅）
-2. 說明聯準會最新政策立場
-3. 基於以上因素，推薦 3 支台股
+**當前分析任務：**
+找出適合當沖的台股標的，條件如下：
+1. **價格條件**：股價低於50元
+2. **成交量條件**：當日成交量超過50萬股
+3. **獲利目標**：有足夠動能上漲，預期漲幅可達5%以上
+4. **投資金額**：每次以10,000元入場
 
-請以 JSON 格式回應：
+**必須分析的因素：**
+
+1. **國際市場影響**：
+   - 昨日美股三大指數（道瓊、那斯達克、S&P500）表現
+   - 聯準會最新利率政策和降息預期
+   - 對台股的連動影響
+
+2. **技術指標分析**（小七娜娜指標）：
+   - RSI（7日、14日）：尋找超賣反彈或強勢突破
+   - MACD（9、21）：確認趨勢轉折
+   - KDJ：判斷短期買賣點
+   - 布林帶：確認突破有效性
+   - VWAP：判斷價格合理性
+   - 成交量：必須超過10日均量
+
+3. **日K線組合圖判斷**：
+   - 進場信號：看漲吞噬、曙光初現、三個白武士
+   - 出場信號：黃昏之星、看跌吞噬
+   - 止損信號：流星、十字星
+
+4. **神奇九轉指標（TD Sequential）**：
+   - 檢查是否出現TD Setup完成
+   - 是否進入TD Countdown倒計時（達到13）
+
+5. **籌碼分析**：
+   - 大單買入頻率
+   - 主力籌碼集中度
+   - 資金流向
+
+6. **價格區間分析**：
+   - 便宜價、合理價、追高價區間
+   - 當前價格位置
+
+**輸出要求：**
+選出3支最適合當沖的台股，以 JSON 格式回應：
 {
+  "analysisTime": "2025-11-22 14:30:00",
   "marketAnalysis": {
-    "usStocks": "昨日美股表現摘要（道瓊、那斯達克、S&P500 漲跌）",
-    "fedPolicy": "聯準會最新政策立場（升息/降息/維持）",
-    "taiwanOutlook": "對今日台股的影響分析"
+    "usStocks": "昨日美股表現（道瓊 +0.5%、那斯達克 +1.2%、S&P500 +0.8%）",
+    "fedPolicy": "聯準會政策立場（維持利率/預期降息）",
+    "taiwanOutlook": "對今日台股影響分析"
   },
   "stocks": [
     {
-      "symbol": "2330",
-      "name": "台積電",
-      "reason": "推薦理由（需包含美股和聯準會政策的影響）",
-      "entryPrice": "600",
-      "targetPrice": "650",
-      "stopLoss": "580",
-      "usImpact": "美股對此股票的影響",
-      "fedImpact": "聯準會政策對此股票的影響"
+      "symbol": "1234",
+      "name": "公司名稱",
+      "currentPrice": "45.5",
+      "entryPrice": "45.8",
+      "targetPrice": "48.0",
+      "stopLoss": "44.9",
+      "shares": "218",
+      "investment": "10000",
+      "expectedProfit": "480",
+      "profitPercent": "4.8%",
+      "volume": "850000",
+      "priceRange": {
+        "cheap": "42-44",
+        "fair": "44-46",
+        "expensive": "46-48"
+      },
+      "technicalAnalysis": {
+        "rsi7": "65",
+        "rsi14": "58",
+        "macd": "多頭排列",
+        "kdj": "黃金交叉",
+        "bollingerBand": "突破上軌",
+        "vwap": "價格在VWAP之上",
+        "volume": "超過10日均量2倍",
+        "tdSequential": "TD Setup完成，進入倒計時"
+      },
+      "candlestickPattern": "看漲吞噬（Bullish Engulfing）",
+      "chipAnalysis": "主力持續買入，籌碼集中度上升",
+      "reason": "完整操作理由（包含美股影響、聯準會政策、技術面、籌碼面）",
+      "usImpact": "美股科技股上漲帶動",
+      "fedImpact": "降息預期有利成長股"
     }
-  ]
+  ],
+  "tradingReminder": "請在15-30分鐘內執行交易，以確保分析的即時性"
 }
 
 只回傳 JSON，不要其他文字。`;
@@ -125,15 +186,21 @@
                 if (jsonMatch) {
                     const stockData = JSON.parse(jsonMatch[0]);
 
-                    // 顯示市場分析
+                    // 顯示市場分析（包含分析時間和交易提醒）
                     if (stockData.marketAnalysis) {
-                        displayMarketAnalysis(stockData.marketAnalysis);
+                        displayMarketAnalysis(
+                            stockData.marketAnalysis,
+                            stockData.analysisTime,
+                            stockData.tradingReminder
+                        );
                     }
 
                     // 顯示股票推薦
-                    displayStocks(stockData.stocks);
+                    if (stockData.stocks && stockData.stocks.length > 0) {
+                        displayStocks(stockData.stocks);
+                    }
 
-                    result.innerHTML = '<p class="text-green-400">✅ 分析完成！</p>';
+                    result.innerHTML = '<p class="text-green-400">✅ 專業分析完成！請查看詳細報告。</p>';
                     result.classList.remove('hidden');
                 } else {
                     throw new Error('無法解析 AI 回應');
@@ -150,9 +217,19 @@
             }
         });
 
-        function displayMarketAnalysis(analysis) {
+        function displayMarketAnalysis(analysis, analysisTime, tradingReminder) {
             const stocksDiv = document.getElementById('stocks');
             const analysisHTML = `
+                <div class="bg-gradient-to-r from-red-900 to-orange-900 rounded-lg p-6 mb-6">
+                    <h3 class="text-2xl font-bold mb-4 flex items-center justify-between">
+                        <span><span class="mr-2">⏰</span> 分析時間</span>
+                        <span class="text-yellow-300 text-lg">${analysisTime || new Date().toLocaleString('zh-TW')}</span>
+                    </h3>
+                    <div class="bg-yellow-900 border-2 border-yellow-500 rounded-lg p-4">
+                        <p class="text-yellow-100 font-semibold">⚠️ ${tradingReminder || '請在15-30分鐘內執行交易，以確保分析的即時性'}</p>
+                    </div>
+                </div>
+
                 <div class="bg-gradient-to-r from-green-900 to-blue-900 rounded-lg p-6 mb-6">
                     <h3 class="text-2xl font-bold mb-4 flex items-center">
                         <span class="mr-2">🌍</span> 市場分析
@@ -178,50 +255,151 @@
 
         function displayStocks(stocks) {
             const stocksDiv = document.getElementById('stocks');
+
+            // 創建匯總表格
+            const summaryTable = `
+                <div class="bg-gray-800 rounded-lg p-6 mb-6 overflow-x-auto">
+                    <h3 class="text-2xl font-bold mb-4 text-green-400">📊 當沖標的匯總表</h3>
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-gray-700">
+                                <th class="p-3 text-left">股票名稱</th>
+                                <th class="p-3 text-left">代號</th>
+                                <th class="p-3 text-right">進場點位</th>
+                                <th class="p-3 text-right">出場點位</th>
+                                <th class="p-3 text-right">止損點位</th>
+                                <th class="p-3 text-right">購買股數</th>
+                                <th class="p-3 text-right">獲利金額</th>
+                                <th class="p-3 text-right">獲利%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${stocks.map(stock => `
+                                <tr class="border-b border-gray-700 hover:bg-gray-750">
+                                    <td class="p-3 font-semibold text-blue-300">${stock.name}</td>
+                                    <td class="p-3">${stock.symbol}</td>
+                                    <td class="p-3 text-right text-green-400">$${stock.entryPrice}</td>
+                                    <td class="p-3 text-right text-blue-400">$${stock.targetPrice}</td>
+                                    <td class="p-3 text-right text-red-400">$${stock.stopLoss}</td>
+                                    <td class="p-3 text-right">${stock.shares} 股</td>
+                                    <td class="p-3 text-right text-green-400">$${stock.expectedProfit}</td>
+                                    <td class="p-3 text-right text-yellow-400">${stock.profitPercent}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            // 詳細分析卡片
             const stocksHTML = stocks.map((stock, index) => `
                 <div class="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg p-6">
                     <div class="flex justify-between items-start mb-4">
                         <div>
-                            <h3 class="text-2xl font-bold">${stock.name}</h3>
-                            <p class="text-blue-300">${stock.symbol}</p>
+                            <h3 class="text-2xl font-bold">${stock.name} (${stock.symbol})</h3>
+                            <p class="text-blue-300">當前價格：$${stock.currentPrice} | 成交量：${stock.volume}</p>
                         </div>
                         <span class="bg-blue-600 px-4 py-2 rounded-full font-bold">
                             推薦 ${index + 1}
                         </span>
                     </div>
-                    <p class="text-gray-300 mb-4">${stock.reason}</p>
 
-                    ${stock.usImpact ? `
-                    <div class="bg-gray-800 rounded-lg p-3 mb-3">
-                        <p class="text-sm text-yellow-400 font-semibold mb-1">📊 美股影響</p>
-                        <p class="text-sm text-gray-300">${stock.usImpact}</p>
+                    <!-- 操作理由 -->
+                    <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                        <h4 class="font-semibold text-yellow-400 mb-2">💡 操作理由</h4>
+                        <p class="text-gray-300">${stock.reason}</p>
+                    </div>
+
+                    <!-- 價格區間分析 -->
+                    ${stock.priceRange ? `
+                    <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                        <h4 class="font-semibold text-yellow-400 mb-2">💰 價格區間分析</h4>
+                        <div class="grid grid-cols-3 gap-2 text-sm">
+                            <div><span class="text-green-400">便宜價：</span>${stock.priceRange.cheap}</div>
+                            <div><span class="text-blue-400">合理價：</span>${stock.priceRange.fair}</div>
+                            <div><span class="text-red-400">追高價：</span>${stock.priceRange.expensive}</div>
+                        </div>
                     </div>
                     ` : ''}
 
-                    ${stock.fedImpact ? `
-                    <div class="bg-gray-800 rounded-lg p-3 mb-4">
-                        <p class="text-sm text-yellow-400 font-semibold mb-1">🏦 聯準會影響</p>
-                        <p class="text-sm text-gray-300">${stock.fedImpact}</p>
+                    <!-- 技術指標 -->
+                    ${stock.technicalAnalysis ? `
+                    <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                        <h4 class="font-semibold text-yellow-400 mb-2">📈 技術指標（小七娜娜指標）</h4>
+                        <div class="grid grid-cols-2 gap-2 text-sm">
+                            <div>RSI(7): ${stock.technicalAnalysis.rsi7}</div>
+                            <div>RSI(14): ${stock.technicalAnalysis.rsi14}</div>
+                            <div>MACD: ${stock.technicalAnalysis.macd}</div>
+                            <div>KDJ: ${stock.technicalAnalysis.kdj}</div>
+                            <div>布林帶: ${stock.technicalAnalysis.bollingerBand}</div>
+                            <div>VWAP: ${stock.technicalAnalysis.vwap}</div>
+                            <div class="col-span-2">成交量: ${stock.technicalAnalysis.volume}</div>
+                            ${stock.technicalAnalysis.tdSequential ? `<div class="col-span-2 text-yellow-400">神奇九轉: ${stock.technicalAnalysis.tdSequential}</div>` : ''}
+                        </div>
                     </div>
                     ` : ''}
 
-                    <div class="grid grid-cols-3 gap-4">
+                    <!-- K線組合 -->
+                    ${stock.candlestickPattern ? `
+                    <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                        <h4 class="font-semibold text-yellow-400 mb-2">📊 K線組合圖</h4>
+                        <p class="text-green-400">${stock.candlestickPattern}</p>
+                    </div>
+                    ` : ''}
+
+                    <!-- 籌碼分析 -->
+                    ${stock.chipAnalysis ? `
+                    <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                        <h4 class="font-semibold text-yellow-400 mb-2">💎 籌碼分析</h4>
+                        <p class="text-gray-300">${stock.chipAnalysis}</p>
+                    </div>
+                    ` : ''}
+
+                    <!-- 美股和聯準會影響 -->
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        ${stock.usImpact ? `
+                        <div class="bg-gray-800 rounded-lg p-3">
+                            <p class="text-sm text-yellow-400 font-semibold mb-1">📊 美股影響</p>
+                            <p class="text-sm text-gray-300">${stock.usImpact}</p>
+                        </div>
+                        ` : ''}
+
+                        ${stock.fedImpact ? `
+                        <div class="bg-gray-800 rounded-lg p-3">
+                            <p class="text-sm text-yellow-400 font-semibold mb-1">🏦 聯準會影響</p>
+                            <p class="text-sm text-gray-300">${stock.fedImpact}</p>
+                        </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- 交易數據 -->
+                    <div class="grid grid-cols-4 gap-4">
                         <div class="bg-gray-800 rounded p-3">
-                            <p class="text-sm text-gray-400">進場價</p>
+                            <p class="text-sm text-gray-400">進場點位</p>
                             <p class="text-lg font-bold text-green-400">$${stock.entryPrice}</p>
                         </div>
                         <div class="bg-gray-800 rounded p-3">
-                            <p class="text-sm text-gray-400">目標價</p>
+                            <p class="text-sm text-gray-400">出場點位</p>
                             <p class="text-lg font-bold text-blue-400">$${stock.targetPrice}</p>
                         </div>
                         <div class="bg-gray-800 rounded p-3">
-                            <p class="text-sm text-gray-400">停損價</p>
+                            <p class="text-sm text-gray-400">止損點位</p>
                             <p class="text-lg font-bold text-red-400">$${stock.stopLoss}</p>
                         </div>
+                        <div class="bg-gray-800 rounded p-3">
+                            <p class="text-sm text-gray-400">預期獲利</p>
+                            <p class="text-lg font-bold text-yellow-400">$${stock.expectedProfit}</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 bg-green-900 rounded-lg p-3">
+                        <p class="text-sm text-gray-300">
+                            投資金額：$${stock.investment} | 購買股數：${stock.shares}股 | 獲利率：${stock.profitPercent}
+                        </p>
                     </div>
                 </div>
             `).join('');
-            stocksDiv.innerHTML += stocksHTML;
+            stocksDiv.innerHTML += summaryTable + stocksHTML;
         }
 
         console.log('✅ 系統初始化完成');
