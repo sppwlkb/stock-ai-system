@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>除錯頁面 - 小七AI選股系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-4xl font-bold mb-8 text-green-400">✅ 除錯頁面</h1>
+        
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h2 class="text-2xl font-semibold mb-4">系統狀態</h2>
+            <div class="space-y-2">
+                <p class="text-green-400">✅ HTML 載入成功</p>
+                <p class="text-green-400">✅ Tailwind CSS 載入成功</p>
+                <p class="text-green-400">✅ JavaScript 可以執行</p>
+                <p id="api-status" class="text-yellow-400">⏳ 檢查 API 連線中...</p>
+            </div>
+        </div>
+
+        <div class="bg-blue-900 rounded-lg p-6 mb-6">
+            <h2 class="text-2xl font-semibold mb-4">環境資訊</h2>
+            <div class="space-y-2 font-mono text-sm">
+                <p>網址: <span id="url" class="text-blue-300"></span></p>
+                <p>時間: <span id="time" class="text-blue-300"></span></p>
+                <p>瀏覽器: <span id="browser" class="text-blue-300"></span></p>
+            </div>
+        </div>
+
+        <div class="bg-purple-900 rounded-lg p-6 mb-6">
+            <h2 class="text-2xl font-semibold mb-4">API 測試</h2>
+            <button id="test-api" class="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg font-semibold">
+                測試 Gemini API
+            </button>
+            <div id="api-result" class="mt-4 p-4 bg-gray-800 rounded hidden"></div>
+        </div>
+
+        <div class="bg-gray-800 rounded-lg p-6">
+            <h2 class="text-2xl font-semibold mb-4">下一步</h2>
+            <p class="mb-4">如果您看到這個頁面，表示基本部署成功。</p>
+            <a href="/" class="inline-block bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-semibold">
+                前往主應用
+            </a>
+        </div>
+    </div>
+
+    <script type="module">
+        // 顯示環境資訊
+        document.getElementById('url').textContent = window.location.href;
+        document.getElementById('time').textContent = new Date().toLocaleString('zh-TW');
+        document.getElementById('browser').textContent = navigator.userAgent.split(' ').slice(-2).join(' ');
+
+        // 測試 API
+        document.getElementById('test-api').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('api-result');
+            resultDiv.classList.remove('hidden');
+            resultDiv.innerHTML = '<p class="text-yellow-400">⏳ 測試中...</p>';
+
+            try {
+                const { GoogleGenAI } = await import('https://esm.run/@google/genai');
+                const apiKey = 'AIzaSyCodEpEezZ804-7TlwSJj5o19QBX1fpGSM';
+                const ai = new GoogleGenAI({ apiKey });
+                
+                resultDiv.innerHTML = '<p class="text-green-400">✅ API 初始化成功！</p>';
+                
+                // 簡單測試
+                const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+                const result = await model.generateContent('Hello');
+                const text = result.response.text();
+                
+                resultDiv.innerHTML = `
+                    <p class="text-green-400 mb-2">✅ API 測試成功！</p>
+                    <p class="text-gray-300">回應: ${text.substring(0, 100)}...</p>
+                `;
+                
+                document.getElementById('api-status').innerHTML = '<span class="text-green-400">✅ API 連線正常</span>';
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="text-red-400 mb-2">❌ API 測試失敗</p>
+                    <p class="text-gray-300 text-sm">${error.message}</p>
+                `;
+                document.getElementById('api-status').innerHTML = '<span class="text-red-400">❌ API 連線失敗</span>';
+            }
+        });
+
+        // 自動測試 API
+        setTimeout(() => {
+            document.getElementById('test-api').click();
+        }, 1000);
+    </script>
+</body>
+</html>
+
