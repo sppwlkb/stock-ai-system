@@ -59,18 +59,36 @@
             stocksDiv.innerHTML = '';
 
             try {
-                const prompt = `請分析台灣股市，推薦 3 支值得投資的股票。
+                const prompt = `你是專業的台股分析師。請綜合以下因素分析台灣股市，推薦 3 支值得投資的股票：
+
+**重要分析因素：**
+1. **美股影響**：請先查詢昨日美股三大指數（道瓊、那斯達克、S&P500）的表現，台股深受美股影響
+2. **聯準會政策**：請考慮最新的聯準會利率政策、降息預期對台股的影響
+3. **台股基本面**：公司營運狀況、產業趨勢
+4. **技術面**：價格走勢、支撐壓力
+
+**分析步驟：**
+1. 先說明昨日美股表現（漲跌幅）
+2. 說明聯準會最新政策立場
+3. 基於以上因素，推薦 3 支台股
 
 請以 JSON 格式回應：
 {
+  "marketAnalysis": {
+    "usStocks": "昨日美股表現摘要（道瓊、那斯達克、S&P500 漲跌）",
+    "fedPolicy": "聯準會最新政策立場（升息/降息/維持）",
+    "taiwanOutlook": "對今日台股的影響分析"
+  },
   "stocks": [
     {
       "symbol": "2330",
       "name": "台積電",
-      "reason": "推薦理由",
+      "reason": "推薦理由（需包含美股和聯準會政策的影響）",
       "entryPrice": "600",
       "targetPrice": "650",
-      "stopLoss": "580"
+      "stopLoss": "580",
+      "usImpact": "美股對此股票的影響",
+      "fedImpact": "聯準會政策對此股票的影響"
     }
   ]
 }
@@ -106,7 +124,15 @@
                 const jsonMatch = text.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     const stockData = JSON.parse(jsonMatch[0]);
+
+                    // 顯示市場分析
+                    if (stockData.marketAnalysis) {
+                        displayMarketAnalysis(stockData.marketAnalysis);
+                    }
+
+                    // 顯示股票推薦
                     displayStocks(stockData.stocks);
+
                     result.innerHTML = '<p class="text-green-400">✅ 分析完成！</p>';
                     result.classList.remove('hidden');
                 } else {
@@ -124,9 +150,35 @@
             }
         });
 
+        function displayMarketAnalysis(analysis) {
+            const stocksDiv = document.getElementById('stocks');
+            const analysisHTML = `
+                <div class="bg-gradient-to-r from-green-900 to-blue-900 rounded-lg p-6 mb-6">
+                    <h3 class="text-2xl font-bold mb-4 flex items-center">
+                        <span class="mr-2">🌍</span> 市場分析
+                    </h3>
+                    <div class="space-y-4">
+                        <div class="bg-gray-800 rounded-lg p-4">
+                            <h4 class="font-semibold text-yellow-400 mb-2">📈 美股表現</h4>
+                            <p class="text-gray-300">${analysis.usStocks}</p>
+                        </div>
+                        <div class="bg-gray-800 rounded-lg p-4">
+                            <h4 class="font-semibold text-yellow-400 mb-2">🏦 聯準會政策</h4>
+                            <p class="text-gray-300">${analysis.fedPolicy}</p>
+                        </div>
+                        <div class="bg-gray-800 rounded-lg p-4">
+                            <h4 class="font-semibold text-yellow-400 mb-2">🇹🇼 台股展望</h4>
+                            <p class="text-gray-300">${analysis.taiwanOutlook}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            stocksDiv.innerHTML = analysisHTML;
+        }
+
         function displayStocks(stocks) {
             const stocksDiv = document.getElementById('stocks');
-            stocksDiv.innerHTML = stocks.map((stock, index) => `
+            const stocksHTML = stocks.map((stock, index) => `
                 <div class="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg p-6">
                     <div class="flex justify-between items-start mb-4">
                         <div>
@@ -138,6 +190,21 @@
                         </span>
                     </div>
                     <p class="text-gray-300 mb-4">${stock.reason}</p>
+
+                    ${stock.usImpact ? `
+                    <div class="bg-gray-800 rounded-lg p-3 mb-3">
+                        <p class="text-sm text-yellow-400 font-semibold mb-1">📊 美股影響</p>
+                        <p class="text-sm text-gray-300">${stock.usImpact}</p>
+                    </div>
+                    ` : ''}
+
+                    ${stock.fedImpact ? `
+                    <div class="bg-gray-800 rounded-lg p-3 mb-4">
+                        <p class="text-sm text-yellow-400 font-semibold mb-1">🏦 聯準會影響</p>
+                        <p class="text-sm text-gray-300">${stock.fedImpact}</p>
+                    </div>
+                    ` : ''}
+
                     <div class="grid grid-cols-3 gap-4">
                         <div class="bg-gray-800 rounded p-3">
                             <p class="text-sm text-gray-400">進場價</p>
@@ -154,6 +221,7 @@
                     </div>
                 </div>
             `).join('');
+            stocksDiv.innerHTML += stocksHTML;
         }
 
         console.log('✅ 系統初始化完成');
