@@ -2,12 +2,8 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import type { StockRecommendation, GroundingChunk, NewsArticle, HistoricalDataPoint } from '../types';
 
-// Per guidelines, API key is in environment variables
-// 使用 Vite 的環境變數格式
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || '';
-if (!apiKey) {
-  console.error('❌ GEMINI_API_KEY 未設定！請在 Vercel 設定環境變數。');
-}
+// API key - 直接使用（臨時解決方案）
+const apiKey = 'AIzaSyCodEpEezZ804-7TlwSJj5o19QBX1fpGSM';
 const ai = new GoogleGenAI({apiKey});
 
 const systemInstruction = `你是一位擁有20年經驗的華爾街避險基金 (Hedge Fund) 資深量化操盤手。你擅長使用「價格行為 (Price Action)」與「量價分析 (VPA)」結合「演算法交易策略」。
