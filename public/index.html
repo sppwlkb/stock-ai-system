@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小七AI選股系統 v2.0 - 測試</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-4xl font-bold text-center mb-8">
+            ✅ 小七AI選股系統 v2.0
+        </h1>
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h2 class="text-2xl font-semibold mb-4 text-green-400">系統狀態檢查</h2>
+            <div class="space-y-2">
+                <p class="text-green-400">✅ Vercel 部署成功</p>
+                <p class="text-green-400">✅ HTML 載入正常</p>
+                <p class="text-green-400">✅ Tailwind CSS 載入正常</p>
+                <p class="text-yellow-400">⏳ React 應用載入中...</p>
+            </div>
+        </div>
+        <div class="bg-blue-900 rounded-lg p-6">
+            <h3 class="text-xl font-semibold mb-4">診斷資訊</h3>
+            <p class="mb-2">如果您看到這個頁面，表示基本部署成功。</p>
+            <p class="mb-2">主應用可能因為以下原因無法載入：</p>
+            <ul class="list-disc list-inside space-y-1 ml-4">
+                <li>環境變數未設定</li>
+                <li>JavaScript 執行錯誤</li>
+                <li>React 應用初始化失敗</li>
+            </ul>
+        </div>
+    </div>
+    <script>
+        console.log('✅ 靜態 HTML 載入成功');
+        console.log('環境：', window.location.hostname);
+        console.log('如果看到這些訊息，表示 JavaScript 可以執行');
+    </script>
+</body>
+</html>
+
