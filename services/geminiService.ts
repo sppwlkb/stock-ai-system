@@ -2,9 +2,9 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import type { StockRecommendation, GroundingChunk, NewsArticle, HistoricalDataPoint } from '../types';
 
-// API key - 直接使用（臨時解決方案）
+// API key - 直接使用
 const apiKey = 'AIzaSyCodEpEezZ804-7TlwSJj5o19QBX1fpGSM';
-const ai = new GoogleGenAI({apiKey});
+const ai = new GoogleGenAI(apiKey);
 
 const systemInstruction = `你是一位擁有20年經驗的華爾街避險基金 (Hedge Fund) 資深量化操盤手。你擅長使用「價格行為 (Price Action)」與「量價分析 (VPA)」結合「演算法交易策略」。
 

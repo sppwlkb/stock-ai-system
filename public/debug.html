@@ -61,7 +61,7 @@
             try {
                 const { GoogleGenAI } = await import('https://esm.run/@google/genai');
                 const apiKey = 'AIzaSyCodEpEezZ804-7TlwSJj5o19QBX1fpGSM';
-                const ai = new GoogleGenAI({ apiKey });
+                const ai = new GoogleGenAI(apiKey);
                 
                 resultDiv.innerHTML = '<p class="text-green-400">✅ API 初始化成功！</p>';
                 
