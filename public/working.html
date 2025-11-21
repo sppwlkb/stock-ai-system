@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小七AI選股系統 v2.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-4xl font-bold text-center mb-8 text-blue-400">
+            🚀 小七AI選股系統 v2.0
+        </h1>
+
+        <div class="max-w-4xl mx-auto space-y-6">
+            <!-- 狀態顯示 -->
+            <div class="bg-gray-800 rounded-lg p-6">
+                <h2 class="text-2xl font-semibold mb-4">系統狀態</h2>
+                <div id="status">
+                    <p class="text-green-400">✅ 頁面載入成功</p>
+                    <p class="text-green-400">✅ 系統準備就緒</p>
+                </div>
+            </div>
+
+            <!-- AI 分析區 -->
+            <div class="bg-gray-800 rounded-lg p-6">
+                <h2 class="text-2xl font-semibold mb-4">AI 股票分析</h2>
+                <button id="analyzeBtn" class="bg-blue-600 hover:bg-blue-700 px-8 py-4 rounded-lg font-bold text-lg w-full">
+                    開始 AI 分析
+                </button>
+                <div id="loading" class="hidden mt-4 text-center">
+                    <p class="text-yellow-400">⏳ AI 分析中，請稍候 10-30 秒...</p>
+                    <div class="mt-4">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto"></div>
+                    </div>
+                </div>
+                <div id="result" class="mt-4 hidden"></div>
+            </div>
+
+            <!-- 結果顯示 -->
+            <div id="stocks" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = 'AIzaSyCodEpEezZ804-7TlwSJj5o19QBX1fpGSM';
+        const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
+
+        document.getElementById('analyzeBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('analyzeBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            const stocksDiv = document.getElementById('stocks');
+
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+            loading.classList.remove('hidden');
+            result.classList.add('hidden');
+            stocksDiv.innerHTML = '';
+
+            try {
+                const prompt = `請分析台灣股市，推薦 3 支值得投資的股票。
+
+請以 JSON 格式回應：
+{
+  "stocks": [
+    {
+      "symbol": "2330",
+      "name": "台積電",
+      "reason": "推薦理由",
+      "entryPrice": "600",
+      "targetPrice": "650",
+      "stopLoss": "580"
+    }
+  ]
+}
+
+只回傳 JSON，不要其他文字。`;
+
+                const response = await fetch(`${API_URL}?key=${API_KEY}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: prompt
+                            }]
+                        }],
+                        generationConfig: {
+                            temperature: 0.7,
+                            maxOutputTokens: 2000,
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API 錯誤: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const text = data.candidates[0].content.parts[0].text;
+                
+                // 解析 JSON
+                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    const stockData = JSON.parse(jsonMatch[0]);
+                    displayStocks(stockData.stocks);
+                    result.innerHTML = '<p class="text-green-400">✅ 分析完成！</p>';
+                    result.classList.remove('hidden');
+                } else {
+                    throw new Error('無法解析 AI 回應');
+                }
+
+            } catch (error) {
+                result.innerHTML = `<p class="text-red-400">❌ 錯誤：${error.message}</p>`;
+                result.classList.remove('hidden');
+                console.error('詳細錯誤:', error);
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+                loading.classList.add('hidden');
+            }
+        });
+
+        function displayStocks(stocks) {
+            const stocksDiv = document.getElementById('stocks');
+            stocksDiv.innerHTML = stocks.map((stock, index) => `
+                <div class="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-2xl font-bold">${stock.name}</h3>
+                            <p class="text-blue-300">${stock.symbol}</p>
+                        </div>
+                        <span class="bg-blue-600 px-4 py-2 rounded-full font-bold">
+                            推薦 ${index + 1}
+                        </span>
+                    </div>
+                    <p class="text-gray-300 mb-4">${stock.reason}</p>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="bg-gray-800 rounded p-3">
+                            <p class="text-sm text-gray-400">進場價</p>
+                            <p class="text-lg font-bold text-green-400">$${stock.entryPrice}</p>
+                        </div>
+                        <div class="bg-gray-800 rounded p-3">
+                            <p class="text-sm text-gray-400">目標價</p>
+                            <p class="text-lg font-bold text-blue-400">$${stock.targetPrice}</p>
+                        </div>
+                        <div class="bg-gray-800 rounded p-3">
+                            <p class="text-sm text-gray-400">停損價</p>
+                            <p class="text-lg font-bold text-red-400">$${stock.stopLoss}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        console.log('✅ 系統初始化完成');
+    </script>
+</body>
+</html>
+
