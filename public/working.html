@@ -22,6 +22,115 @@
                 </div>
             </div>
 
+            <!-- 用戶設定區域 -->
+            <div class="bg-gradient-to-r from-gray-800 to-gray-900 rounded-lg p-6 border-l-4 border-yellow-400">
+                <h2 class="text-2xl font-semibold mb-4 text-yellow-400 flex items-center">
+                    ⚙️ 分析條件設定
+                    <span class="ml-2 text-sm text-gray-400 font-normal">（設定您的投資偏好）</span>
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- 投資金額設定 -->
+                    <div class="bg-gray-900 rounded-lg p-4">
+                        <label class="block text-sm font-semibold text-yellow-400 mb-2">
+                            💰 投資金額
+                        </label>
+                        <input
+                            type="number"
+                            id="investmentAmount"
+                            value="10000"
+                            min="1000"
+                            step="1000"
+                            class="w-full bg-gray-800 text-white border border-gray-700 rounded px-3 py-2 mb-2 focus:border-yellow-400 focus:outline-none"
+                        />
+                        <input
+                            type="range"
+                            id="investmentSlider"
+                            min="10000"
+                            max="1000000"
+                            step="10000"
+                            value="10000"
+                            class="w-full"
+                        />
+                        <div class="flex justify-between text-xs text-gray-400 mt-1">
+                            <span>1萬</span>
+                            <span id="investmentDisplay" class="text-yellow-400 font-semibold">1萬</span>
+                            <span>100萬</span>
+                        </div>
+                    </div>
+
+                    <!-- 股價範圍篩選 -->
+                    <div class="bg-gray-900 rounded-lg p-4">
+                        <label class="block text-sm font-semibold text-yellow-400 mb-2">
+                            📊 股價上限
+                        </label>
+                        <input
+                            type="number"
+                            id="maxPrice"
+                            value="0"
+                            min="0"
+                            step="10"
+                            placeholder="不限制"
+                            class="w-full bg-gray-800 text-white border border-gray-700 rounded px-3 py-2 mb-2 focus:border-yellow-400 focus:outline-none"
+                        />
+                        <input
+                            type="range"
+                            id="priceSlider"
+                            min="0"
+                            max="200"
+                            step="10"
+                            value="0"
+                            class="w-full"
+                        />
+                        <div class="flex justify-between text-xs text-gray-400 mt-1">
+                            <span>不限</span>
+                            <span id="priceDisplay" class="text-yellow-400 font-semibold">不限制</span>
+                            <span>200元</span>
+                        </div>
+                    </div>
+
+                    <!-- 獲利率門檻 -->
+                    <div class="bg-gray-900 rounded-lg p-4">
+                        <label class="block text-sm font-semibold text-yellow-400 mb-2">
+                            📈 最低獲利率
+                        </label>
+                        <input
+                            type="number"
+                            id="minProfit"
+                            value="8"
+                            min="5"
+                            max="20"
+                            step="1"
+                            class="w-full bg-gray-800 text-white border border-gray-700 rounded px-3 py-2 mb-2 focus:border-yellow-400 focus:outline-none"
+                        />
+                        <input
+                            type="range"
+                            id="profitSlider"
+                            min="5"
+                            max="20"
+                            step="1"
+                            value="8"
+                            class="w-full"
+                        />
+                        <div class="flex justify-between text-xs text-gray-400 mt-1">
+                            <span>5%</span>
+                            <span id="profitDisplay" class="text-yellow-400 font-semibold">8%</span>
+                            <span>20%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 當前設定摘要 -->
+                <div class="mt-4 p-3 bg-gray-800 rounded-lg border border-gray-700">
+                    <p class="text-sm text-gray-300">
+                        <span class="text-yellow-400 font-semibold">當前設定：</span>
+                        投資金額 <span id="summaryInvestment" class="text-white font-semibold">1萬元</span>，
+                        股價上限 <span id="summaryPrice" class="text-white font-semibold">不限制</span>，
+                        最低獲利率 <span id="summaryProfit" class="text-white font-semibold">8%</span>
+                    </p>
+                </div>
+            </div>
+
             <!-- AI 分析區 -->
             <div class="bg-gray-800 rounded-lg p-6">
                 <h2 class="text-2xl font-semibold mb-4">AI 股票分析</h2>
@@ -378,6 +487,12 @@
                     console.log(`真實股價: ${realPrice}元`);
                     console.log(`真實成交量: ${realData.volume}股`);
 
+                    // 驗證是否符合用戶設定的條件
+                    if (userSettings.maxPrice > 0 && realPrice > userSettings.maxPrice) {
+                        console.warn(`❌ ${stock.name} 股價 ${realPrice}元 超過用戶設定的上限 ${userSettings.maxPrice}元，跳過`);
+                        continue;
+                    }
+
                     // 智能判斷波動性
                     const volatility = detectVolatility(stock.symbol, realPrice, stock.technicalAnalysis);
                     console.log(`波動性判斷: ${volatility}`);
@@ -386,8 +501,16 @@
                     const profitPercent = calculateProfitTarget(realPrice, volatility);
                     console.log(`獲利目標: ${(profitPercent * 100).toFixed(1)}%`);
 
-                    // 計算交易數據
-                    const shares = Math.floor(10000 / realPrice);
+                    // 驗證獲利率是否符合用戶設定
+                    const profitPercentValue = profitPercent * 100;
+                    if (profitPercentValue < userSettings.minProfit) {
+                        console.warn(`❌ ${stock.name} 預期獲利率 ${profitPercentValue.toFixed(1)}% 低於用戶設定的最低獲利率 ${userSettings.minProfit}%，跳過`);
+                        continue;
+                    }
+
+                    // 計算交易數據（使用用戶設定的投資金額）
+                    const investmentAmount = userSettings.investmentAmount;
+                    const shares = Math.floor(investmentAmount / realPrice);
                     const targetPrice = (realPrice * (1 + profitPercent)).toFixed(2);
                     const stopLoss = (realPrice * 0.98).toFixed(2); // 2% 止損
                     const expectedProfit = ((targetPrice - realPrice) * shares).toFixed(0);
@@ -395,6 +518,8 @@
 
                     // 計算風險報酬比
                     const riskRewardRatio = (profitPercent / 0.02).toFixed(2); // 獲利% / 止損%
+
+                    console.log(`✅ 符合用戶設定：投資${investmentAmount}元，購買${shares}股，預期獲利${expectedProfit}元（${profitPercentDisplay}）`);
 
                     // 基於真實股價計算價格區間
                     const priceRange = calculatePriceRange(realPrice);
@@ -427,7 +552,7 @@
                         profitPercent: profitPercentDisplay,
                         riskRewardRatio: riskRewardRatio,
                         priceRange: priceRange,
-                        investment: '10000',
+                        investment: investmentAmount.toString(),
                         dataSource: '台灣證交所即時數據',
                         calculationMethod: `動態獲利目標（${profitPercentDisplay}）基於股價 $${realPrice} 和波動性`,
                         priceRangeNote: `價格區間基於真實股價 $${realPrice.toFixed(2)} 計算`,
@@ -512,10 +637,17 @@ ${realPriceInfo}
 
 **當前分析任務：**
 找出適合當沖的台股標的，條件如下：
-1. **價格條件**：股價低於50元
+1. **價格條件**：股價${userSettings.maxPrice > 0 ? `低於${userSettings.maxPrice}元` : '不限制'}
 2. **成交量條件**：當日成交量超過50萬股
-3. **獲利目標**：根據股票波動性設定，最低8%，最高15%
-4. **投資金額**：每次以10,000元入場
+3. **獲利目標**：根據股票波動性設定，最低${userSettings.minProfit}%，最高15%
+4. **投資金額**：每次以${userSettings.investmentAmount.toLocaleString()}元入場
+
+⚠️ **用戶設定的篩選條件（必須嚴格遵守）：**
+- 投資金額：${userSettings.investmentAmount.toLocaleString()}元
+- 股價上限：${userSettings.maxPrice > 0 ? userSettings.maxPrice + '元' : '不限制'}
+- 最低獲利率：${userSettings.minProfit}%
+
+**重要：只推薦符合以上所有條件的股票！**
 
 **重要：每次分析必須推薦不同的股票！**
 - 不要重複推薦相同的股票
@@ -1334,7 +1466,74 @@ ${realPriceInfo}
             console.log('✅ 股票分析顯示完成！K線圖連結已準備好。');
         }
 
+        // 用戶設定管理
+        const userSettings = {
+            investmentAmount: 10000,
+            maxPrice: 0,
+            minProfit: 8
+        };
+
+        // 格式化金額顯示
+        function formatAmount(amount) {
+            if (amount >= 10000) {
+                return (amount / 10000).toFixed(0) + '萬';
+            }
+            return amount.toString();
+        }
+
+        // 更新投資金額
+        function updateInvestment() {
+            const amount = parseInt(document.getElementById('investmentAmount').value) || 10000;
+            userSettings.investmentAmount = amount;
+            document.getElementById('investmentSlider').value = amount;
+            document.getElementById('investmentDisplay').textContent = formatAmount(amount);
+            document.getElementById('summaryInvestment').textContent = formatAmount(amount) + '元';
+        }
+
+        // 更新股價上限
+        function updateMaxPrice() {
+            const price = parseInt(document.getElementById('maxPrice').value) || 0;
+            userSettings.maxPrice = price;
+            document.getElementById('priceSlider').value = price;
+            document.getElementById('priceDisplay').textContent = price === 0 ? '不限制' : price + '元';
+            document.getElementById('summaryPrice').textContent = price === 0 ? '不限制' : price + '元以下';
+        }
+
+        // 更新最低獲利率
+        function updateMinProfit() {
+            const profit = parseInt(document.getElementById('minProfit').value) || 8;
+            userSettings.minProfit = profit;
+            document.getElementById('profitSlider').value = profit;
+            document.getElementById('profitDisplay').textContent = profit + '%';
+            document.getElementById('summaryProfit').textContent = profit + '%';
+        }
+
+        // 綁定事件監聽器
+        document.getElementById('investmentAmount').addEventListener('input', updateInvestment);
+        document.getElementById('investmentSlider').addEventListener('input', function() {
+            document.getElementById('investmentAmount').value = this.value;
+            updateInvestment();
+        });
+
+        document.getElementById('maxPrice').addEventListener('input', updateMaxPrice);
+        document.getElementById('priceSlider').addEventListener('input', function() {
+            document.getElementById('maxPrice').value = this.value;
+            updateMaxPrice();
+        });
+
+        document.getElementById('minProfit').addEventListener('input', updateMinProfit);
+        document.getElementById('profitSlider').addEventListener('input', function() {
+            document.getElementById('minProfit').value = this.value;
+            updateMinProfit();
+        });
+
+        // 初始化顯示
+        updateInvestment();
+        updateMaxPrice();
+        updateMinProfit();
+
         console.log('✅ 系統初始化完成');
+        console.log('用戶設定:', userSettings);
     </script>
 </body>
 </html>
