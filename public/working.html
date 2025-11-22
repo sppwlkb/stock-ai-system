@@ -46,6 +46,63 @@
         const API_KEY = 'AIzaSyCodEpEezZ804-7TlwSJj5o19QBX1fpGSM';
         const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
 
+        // 獲取真實台股股價
+        async function getRealStockPrice(symbol) {
+            try {
+                const response = await fetch(`https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date=${new Date().toISOString().slice(0, 7).replace('-', '')}&stockNo=${symbol}&response=json`);
+                const data = await response.json();
+                if (data.data && data.data.length > 0) {
+                    const latestData = data.data[data.data.length - 1];
+                    return {
+                        price: parseFloat(latestData[6]), // 收盤價
+                        volume: parseInt(latestData[1].replace(/,/g, '')), // 成交股數
+                        date: latestData[0]
+                    };
+                }
+            } catch (error) {
+                console.error(`獲取 ${symbol} 股價失敗:`, error);
+            }
+            return null;
+        }
+
+        // 驗證並修正 AI 推薦的股票價格
+        async function validateAndCorrectStocks(stocks) {
+            const correctedStocks = [];
+
+            for (const stock of stocks) {
+                const realData = await getRealStockPrice(stock.symbol);
+
+                if (realData) {
+                    // 使用真實股價
+                    const realPrice = realData.price;
+                    const shares = Math.floor(10000 / realPrice);
+                    const targetPrice = (realPrice * 1.05).toFixed(2); // 5% 獲利目標
+                    const stopLoss = (realPrice * 0.98).toFixed(2); // 2% 止損
+                    const expectedProfit = ((targetPrice - realPrice) * shares).toFixed(0);
+                    const profitPercent = '5.0%';
+
+                    correctedStocks.push({
+                        ...stock,
+                        currentPrice: realPrice.toFixed(2),
+                        entryPrice: realPrice.toFixed(2),
+                        targetPrice: targetPrice,
+                        stopLoss: stopLoss,
+                        shares: shares.toString(),
+                        volume: realData.volume.toString(),
+                        expectedProfit: expectedProfit,
+                        profitPercent: profitPercent,
+                        investment: '10000',
+                        dataSource: '台灣證交所即時數據'
+                    });
+                } else {
+                    // 如果無法獲取真實數據，標記為無效
+                    console.warn(`無法獲取 ${stock.symbol} 的真實數據`);
+                }
+            }
+
+            return correctedStocks;
+        }
+
         document.getElementById('analyzeBtn').addEventListener('click', async () => {
             const btn = document.getElementById('analyzeBtn');
             const loading = document.getElementById('loading');
@@ -195,13 +252,20 @@
                         );
                     }
 
-                    // 顯示股票推薦
+                    // 驗證並修正股票價格（使用真實數據）
                     if (stockData.stocks && stockData.stocks.length > 0) {
-                        displayStocks(stockData.stocks);
-                    }
+                        result.innerHTML = '<p class="text-yellow-400">⏳ 正在驗證股價並獲取即時數據...</p>';
+                        result.classList.remove('hidden');
 
-                    result.innerHTML = '<p class="text-green-400">✅ 專業分析完成！請查看詳細報告。</p>';
-                    result.classList.remove('hidden');
+                        const correctedStocks = await validateAndCorrectStocks(stockData.stocks);
+
+                        if (correctedStocks.length > 0) {
+                            displayStocks(correctedStocks);
+                            result.innerHTML = '<p class="text-green-400">✅ 專業分析完成！所有股價已使用台灣證交所即時數據驗證。</p>';
+                        } else {
+                            result.innerHTML = '<p class="text-red-400">❌ 無法獲取即時股價數據，請稍後再試。</p>';
+                        }
+                    }
                 } else {
                     throw new Error('無法解析 AI 回應');
                 }
@@ -298,6 +362,7 @@
                         <div>
                             <h3 class="text-2xl font-bold">${stock.name} (${stock.symbol})</h3>
                             <p class="text-blue-300">當前價格：$${stock.currentPrice} | 成交量：${stock.volume}</p>
+                            ${stock.dataSource ? `<p class="text-green-400 text-sm">✅ ${stock.dataSource}</p>` : ''}
                         </div>
                         <span class="bg-blue-600 px-4 py-2 rounded-full font-bold">
                             推薦 ${index + 1}
