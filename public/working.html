@@ -903,19 +903,29 @@ ${realPriceInfo}
                     jsonStr = jsonStr.replace(/\}\s*\{/g, '}, {');
                     // Pattern 4: ] [ -> ], [
                     jsonStr = jsonStr.replace(/\]\s*\[/g, '], [');
-                    // Pattern 5: } "key" -> }, "key"
+                    // Pattern 5: } "key" -> }, "key" （最常見的錯誤）
                     jsonStr = jsonStr.replace(/\}\s+"([^"]+)":/g, '}, "$1":');
                     // Pattern 6: ] "key" -> ], "key"
                     jsonStr = jsonStr.replace(/\]\s+"([^"]+)":/g, '], "$1":');
-                    // Pattern 7: "value" } -> "value" }（保持不變，這是正確的）
-                    // Pattern 8: "value" ] -> "value" ]（保持不變，這是正確的）
 
-                    // 修正陣列元素之間缺少逗號的特殊情況
-                    // Pattern 9: __STRING_X__ __STRING_Y__ -> __STRING_X__, __STRING_Y__（已在 Pattern 1 處理）
-                    // Pattern 10: true false -> true, false
+                    // Pattern 7: } 後面跟著換行和空格，然後是 "key" -> }, "key"
+                    // 這是最常見的 AI 錯誤：priceRange 結束後忘記加逗號
+                    jsonStr = jsonStr.replace(/\}(\s+)"([^"]+)":/g, '},\n"$2":');
+
+                    // Pattern 8: ] 後面跟著換行和空格，然後是 "key" -> ], "key"
+                    jsonStr = jsonStr.replace(/\](\s+)"([^"]+)":/g, '],\n"$2":');
+
+                    // Pattern 9: 修正陣列元素之間缺少逗號
                     jsonStr = jsonStr.replace(/\b(true|false|null|\d+)\s+(true|false|null|\d+|"[^"]*"|\{|\[)/g, '$1, $2');
-                    // Pattern 11: "key": value "key2" -> "key": value, "key2"
+
+                    // Pattern 10: "key": value "key2" -> "key": value, "key2"
                     jsonStr = jsonStr.replace(/:\s*(__STRING_\d+__|true|false|null|\d+)\s+"([^"]+)":/g, ': $1, "$2":');
+
+                    // Pattern 11: 特別處理 priceRange 後面缺少逗號的情況
+                    // }      } -> },      }
+                    jsonStr = jsonStr.replace(/\}(\s{2,})\}/g, '},$1}');
+
+                    console.log('JSON 清理完成，應用了 11 種修正模式');
 
                     // 6. 還原字串
                     strings.forEach((str, i) => {
