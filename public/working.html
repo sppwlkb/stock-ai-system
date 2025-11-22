@@ -706,14 +706,34 @@ ${realPriceInfo}
                     jsonStr = jsonStr.replace(/'/g, '');
                     jsonStr = jsonStr.replace(/[\x00-\x1F\x7F]/g, '');
 
-                    // 5. 修正常見的 JSON 錯誤
+                    // 5. 修正常見的 JSON 錯誤（保持所有功能，不簡化）
                     // 移除屬性名稱後多餘的冒號
                     jsonStr = jsonStr.replace(/:+/g, ':');
                     // 移除多餘的逗號
                     jsonStr = jsonStr.replace(/,+/g, ',');
-                    // 修正缺少逗號的情況（"value" "key" -> "value", "key"）
+
+                    // 修正缺少逗號的情況（多種模式）
+                    // Pattern 1: "value" "key" -> "value", "key"
                     jsonStr = jsonStr.replace(/__STRING_(\d+)__\s+__STRING_(\d+)__/g, '__STRING_$1__, __STRING_$2__');
+                    // Pattern 2: __STRING_X__ "key": -> __STRING_X__, "key":
                     jsonStr = jsonStr.replace(/__STRING_(\d+)__\s+"([^"]+)":/g, '__STRING_$1__, "$2":');
+                    // Pattern 3: } { -> }, {
+                    jsonStr = jsonStr.replace(/\}\s*\{/g, '}, {');
+                    // Pattern 4: ] [ -> ], [
+                    jsonStr = jsonStr.replace(/\]\s*\[/g, '], [');
+                    // Pattern 5: } "key" -> }, "key"
+                    jsonStr = jsonStr.replace(/\}\s+"([^"]+)":/g, '}, "$1":');
+                    // Pattern 6: ] "key" -> ], "key"
+                    jsonStr = jsonStr.replace(/\]\s+"([^"]+)":/g, '], "$1":');
+                    // Pattern 7: "value" } -> "value" }（保持不變，這是正確的）
+                    // Pattern 8: "value" ] -> "value" ]（保持不變，這是正確的）
+
+                    // 修正陣列元素之間缺少逗號的特殊情況
+                    // Pattern 9: __STRING_X__ __STRING_Y__ -> __STRING_X__, __STRING_Y__（已在 Pattern 1 處理）
+                    // Pattern 10: true false -> true, false
+                    jsonStr = jsonStr.replace(/\b(true|false|null|\d+)\s+(true|false|null|\d+|"[^"]*"|\{|\[)/g, '$1, $2');
+                    // Pattern 11: "key": value "key2" -> "key": value, "key2"
+                    jsonStr = jsonStr.replace(/:\s*(__STRING_\d+__|true|false|null|\d+)\s+"([^"]+)":/g, ': $1, "$2":');
 
                     // 6. 還原字串
                     strings.forEach((str, i) => {
@@ -744,31 +764,77 @@ ${realPriceInfo}
                             console.error('錯誤上下文:', context);
                             console.error('錯誤位置標記:', ' '.repeat(pos - start) + '^');
 
-                            // 嘗試自動修復
+                            // 嘗試自動修復（多種方案，不簡化功能）
                             console.log('🔧 嘗試自動修復...');
 
-                            // 修復方案1：移除錯誤位置的字符
-                            let fixedJson1 = jsonStr.substring(0, pos) + jsonStr.substring(pos + 1);
-                            try {
-                                stockData = JSON.parse(fixedJson1);
-                                console.log('✅ 修復成功（移除錯誤字符）');
-                            } catch (e) {
-                                // 修復方案2：替換為逗號
-                                let fixedJson2 = jsonStr.substring(0, pos) + ',' + jsonStr.substring(pos + 1);
-                                try {
-                                    stockData = JSON.parse(fixedJson2);
-                                    console.log('✅ 修復成功（替換為逗號）');
-                                } catch (e2) {
-                                    // 修復方案3：替換為空格
-                                    let fixedJson3 = jsonStr.substring(0, pos) + ' ' + jsonStr.substring(pos + 1);
-                                    try {
-                                        stockData = JSON.parse(fixedJson3);
-                                        console.log('✅ 修復成功（替換為空格）');
-                                    } catch (e3) {
-                                        console.error('❌ 自動修復失敗');
-                                        throw new Error(`JSON 格式錯誤：${parseError.message}。請重新分析。`);
+                            const fixStrategies = [
+                                {
+                                    name: '移除錯誤字符',
+                                    fix: (str, p) => str.substring(0, p) + str.substring(p + 1)
+                                },
+                                {
+                                    name: '替換為逗號',
+                                    fix: (str, p) => str.substring(0, p) + ',' + str.substring(p + 1)
+                                },
+                                {
+                                    name: '替換為空格',
+                                    fix: (str, p) => str.substring(0, p) + ' ' + str.substring(p + 1)
+                                },
+                                {
+                                    name: '在前面插入逗號',
+                                    fix: (str, p) => str.substring(0, p) + ',' + str.substring(p)
+                                },
+                                {
+                                    name: '移除前一個字符',
+                                    fix: (str, p) => str.substring(0, Math.max(0, p - 1)) + str.substring(p)
+                                },
+                                {
+                                    name: '替換前一個字符為逗號',
+                                    fix: (str, p) => str.substring(0, Math.max(0, p - 1)) + ',' + str.substring(p)
+                                },
+                                {
+                                    name: '移除前後各一個字符',
+                                    fix: (str, p) => str.substring(0, Math.max(0, p - 1)) + str.substring(p + 1)
+                                },
+                                {
+                                    name: '替換為 }, ',
+                                    fix: (str, p) => str.substring(0, p) + '}, ' + str.substring(p + 1)
+                                },
+                                {
+                                    name: '替換為 ], ',
+                                    fix: (str, p) => str.substring(0, p) + '], ' + str.substring(p + 1)
+                                },
+                                {
+                                    name: '移除到下一個逗號',
+                                    fix: (str, p) => {
+                                        const nextComma = str.indexOf(',', p);
+                                        if (nextComma > p) {
+                                            return str.substring(0, p) + str.substring(nextComma);
+                                        }
+                                        return str;
                                     }
                                 }
+                            ];
+
+                            let fixed = false;
+                            for (const strategy of fixStrategies) {
+                                try {
+                                    const fixedJson = strategy.fix(jsonStr, pos);
+                                    stockData = JSON.parse(fixedJson);
+                                    console.log(`✅ 修復成功（${strategy.name}）`);
+                                    fixed = true;
+                                    break;
+                                } catch (e) {
+                                    // 繼續嘗試下一個策略
+                                }
+                            }
+
+                            if (!fixed) {
+                                console.error('❌ 所有自動修復方案都失敗');
+                                console.error('請將以下信息提供給開發者：');
+                                console.error('錯誤位置:', pos);
+                                console.error('錯誤上下文:', context);
+                                throw new Error(`JSON 格式錯誤：${parseError.message}。請重新分析。`);
                             }
                         } else {
                             throw new Error(`JSON 格式錯誤：${parseError.message}。請重新分析。`);
