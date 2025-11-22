@@ -856,6 +856,7 @@ ${realPriceInfo}
                             if (!fixed) {
                                 console.error('❌ 所有自動修復方案都失敗');
                                 console.log('🔧 嘗試終極修復方案：逐步解析...');
+                                console.log('原始 JSON 長度:', jsonStr.length);
 
                                 // 終極修復方案：嘗試找出所有錯誤位置並修復
                                 let workingJson = jsonStr;
