@@ -839,17 +839,23 @@ ${realPriceInfo}
                             ];
 
                             let fixed = false;
-                            for (const strategy of fixStrategies) {
+                            console.log(`🔧 嘗試 ${fixStrategies.length} 種自動修復策略...`);
+
+                            for (let i = 0; i < fixStrategies.length; i++) {
+                                const strategy = fixStrategies[i];
                                 try {
+                                    console.log(`  嘗試策略 ${i + 1}/${fixStrategies.length}: ${strategy.name}`);
                                     const fixedJson = strategy.fix(jsonStr, pos);
                                     stockData = JSON.parse(fixedJson);
                                     console.log(`✅ 修復成功（${strategy.name}）`);
                                     fixed = true;
                                     break;
                                 } catch (e) {
-                                    // 繼續嘗試下一個策略
+                                    console.log(`  ❌ 策略失敗: ${e.message.substring(0, 50)}...`);
                                 }
                             }
+
+                            console.log(`自動修復結果: ${fixed ? '成功' : '失敗'}`);
 
                             if (!fixed) {
                                 console.error('❌ 所有自動修復方案都失敗');
