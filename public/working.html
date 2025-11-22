@@ -65,6 +65,57 @@
             return null;
         }
 
+        // 驗證數據品質
+        function validateDataQuality(stock) {
+            const issues = [];
+
+            // 檢查基本面是否包含具體數字
+            if (stock.fundamentals) {
+                const hasEPS = /EPS|每股盈餘/.test(stock.fundamentals) && /\d+\.?\d*元/.test(stock.fundamentals);
+                const hasROE = /ROE|股東權益報酬率/.test(stock.fundamentals) && /百分之\d+|成/.test(stock.fundamentals);
+                const hasPE = /本益比|PE|P\/E/.test(stock.fundamentals) && /\d+\.?\d*倍/.test(stock.fundamentals);
+
+                if (!hasEPS) issues.push('基本面缺少EPS數據');
+                if (!hasROE) issues.push('基本面缺少ROE數據');
+                if (!hasPE) issues.push('基本面缺少本益比數據');
+            } else {
+                issues.push('缺少基本面分析');
+            }
+
+            // 檢查技術面是否包含具體數值
+            if (stock.technicalAnalysis) {
+                const hasRSI = /RSI/.test(stock.technicalAnalysis) && /\d+/.test(stock.technicalAnalysis);
+                const hasMACD = /MACD/.test(stock.technicalAnalysis);
+
+                if (!hasRSI) issues.push('技術面缺少RSI數值');
+                if (!hasMACD) issues.push('技術面缺少MACD分析');
+            } else {
+                issues.push('缺少技術面分析');
+            }
+
+            // 檢查籌碼面是否包含具體數字
+            if (stock.chipAnalysis) {
+                const hasForeign = /外資/.test(stock.chipAnalysis) && /\d+張/.test(stock.chipAnalysis);
+                const hasConcentration = /集中度/.test(stock.chipAnalysis) && /百分之\d+|成/.test(stock.chipAnalysis);
+
+                if (!hasForeign) issues.push('籌碼面缺少外資買賣超數據');
+                if (!hasConcentration) issues.push('籌碼面缺少主力集中度數據');
+            } else {
+                issues.push('缺少籌碼面分析');
+            }
+
+            // 檢查操作理由長度
+            if (stock.reason && stock.reason.length < 200) {
+                issues.push(`操作理由過短（${stock.reason.length}字，建議至少200字）`);
+            }
+
+            return {
+                isValid: issues.length === 0,
+                issues: issues,
+                score: Math.max(0, 100 - issues.length * 10)
+            };
+        }
+
         // 計算動態獲利目標（根據股價和波動性）
         function calculateProfitTarget(price, volatility = 'medium') {
             // 根據股價區間設定不同的獲利目標
@@ -200,14 +251,39 @@
             stocksDiv.innerHTML = '';
 
             try {
+                // 第一步：獲取真實股價數據（用於注入 prompt）
+                result.innerHTML = '<p class="text-blue-400">⏳ 步驟1/3：獲取即時股價數據...</p>';
+                result.classList.remove('hidden');
+
+                // 獲取熱門股票的真實股價（用於 prompt 注入）
+                const popularStocks = ['2330', '2317', '2454', '2881', '2882', '2883', '2884', '2885', '2886', '2887', '2891', '2892', '2409', '2412', '3008', '2603'];
+                const realPriceData = {};
+
+                for (const symbol of popularStocks.slice(0, 5)) {
+                    const data = await getRealStockPrice(symbol);
+                    if (data) {
+                        realPriceData[symbol] = data.price;
+                    }
+                }
+
+                result.innerHTML = '<p class="text-blue-400">⏳ 步驟2/3：AI 分析中，請稍候...</p>';
+
                 // 添加隨機性，確保每次推薦不同股票
                 const timestamp = new Date().toISOString();
                 const randomSeed = Math.random().toString(36).substring(7);
+
+                // 構建包含真實股價的 prompt
+                const realPriceInfo = Object.entries(realPriceData)
+                    .map(([symbol, price]) => `${symbol}當前股價${price}元`)
+                    .join('，');
 
                 const prompt = `你是一位有20年經驗的資深股市分析師，專注於台股當沖交易。
 
 **分析時間：${timestamp}**
 **分析編號：${randomSeed}**
+
+⚠️ **重要：以下是當前真實股價數據，你必須基於這些真實價格進行分析：**
+${realPriceInfo}
 
 ⚠️ 重要：這是第 ${Math.floor(Math.random() * 100) + 1} 次分析，請推薦與之前不同的股票！
 
@@ -353,10 +429,13 @@
                     throw new Error(`API 錯誤: ${response.status}`);
                 }
 
+                result.innerHTML = '<p class="text-blue-400">⏳ 步驟3/3：解析和驗證數據...</p>';
+
                 const data = await response.json();
                 const text = data.candidates[0].content.parts[0].text;
 
                 console.log('AI 原始回應:', text);
+                console.log('回應長度:', text.length, '字符');
 
                 // 解析 JSON - 更強健的處理
                 let jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -420,14 +499,31 @@
 
                     // 驗證並修正股票價格（使用真實數據）
                     if (stockData.stocks && stockData.stocks.length > 0) {
-                        result.innerHTML = '<p class="text-yellow-400">⏳ 正在驗證股價並獲取即時數據...</p>';
+                        result.innerHTML = '<p class="text-yellow-400">⏳ 正在驗證數據品質和股價...</p>';
                         result.classList.remove('hidden');
+
+                        // 先驗證數據品質
+                        console.log('=== 數據品質驗證 ===');
+                        stockData.stocks.forEach((stock, index) => {
+                            const validation = validateDataQuality(stock);
+                            console.log(`股票 ${index + 1} (${stock.symbol}) 品質評分: ${validation.score}/100`);
+                            if (validation.issues.length > 0) {
+                                console.warn(`問題清單:`, validation.issues);
+                            }
+                        });
 
                         const correctedStocks = await validateAndCorrectStocks(stockData.stocks);
 
                         if (correctedStocks.length > 0) {
+                            // 再次驗證修正後的數據
+                            console.log('=== 修正後數據品質 ===');
+                            correctedStocks.forEach((stock, index) => {
+                                const validation = validateDataQuality(stock);
+                                console.log(`股票 ${index + 1} (${stock.symbol}) 品質評分: ${validation.score}/100`);
+                            });
+
                             displayStocks(correctedStocks);
-                            result.innerHTML = '<p class="text-green-400">✅ 專業分析完成！所有股價已使用台灣證交所即時數據驗證。</p>';
+                            result.innerHTML = '<p class="text-green-400">✅ 專業分析完成！所有股價已使用台灣證交所即時數據驗證。請查看Console了解數據品質評分。</p>';
                         } else {
                             result.innerHTML = '<p class="text-red-400">❌ 無法獲取即時股價數據，請稍後再試。</p>';
                         }
