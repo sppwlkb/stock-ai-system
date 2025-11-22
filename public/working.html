@@ -722,9 +722,14 @@ ${realPriceInfo}
    - 當前價格位置
 
 **輸出要求：**
+🚨 **必須推薦 ${userSettings.stockCount} 支股票，不能多也不能少！**
+
 選出 ${userSettings.stockCount} 支最適合當沖的台股，以 JSON 格式回應。
 
-⚠️ **極度重要：你必須提供包含具體數據的專業分析！**
+⚠️ **極度重要：**
+1. 你必須提供包含具體數據的專業分析
+2. **stocks 陣列中必須包含正好 ${userSettings.stockCount} 個股票物件**
+3. 如果你只推薦了 3 支股票，但用戶要求 ${userSettings.stockCount} 支，這是錯誤的！
 
 **強制要求（必須遵守）：**
 
@@ -784,6 +789,9 @@ ${realPriceInfo}
 ❌ 錯誤：[{...} {...}]  // 缺少逗號
 ✅ 正確：[{...}, {...}]
 
+❌ 錯誤：只推薦 3 支股票，但用戶要求 ${userSettings.stockCount} 支
+✅ 正確：推薦正好 ${userSettings.stockCount} 支股票
+
 ❌ 錯誤：{"reason": "EPS良好
 技術面RSI65"}  // 字串換行
 ✅ 正確：{"reason": "EPS良好技術面RSI65"}
@@ -791,7 +799,7 @@ ${realPriceInfo}
 ❌ 錯誤：{"name": "台積電",}  // 最後多了逗號
 ✅ 正確：{"name": "台積電"}
 
-**範例格式（請完全按照此格式）：**
+**範例格式（請完全按照此格式，必須包含 ${userSettings.stockCount} 支股票）：**
 {
   "stocks": [
     {
@@ -804,8 +812,11 @@ ${realPriceInfo}
       "name": "鴻海",
       "reason": "基本面營收成長技術面MACD金叉籌碼面主力集中"
     }
+    // ... 繼續添加，直到總共 ${userSettings.stockCount} 支股票
   ]
 }
+
+🚨 **重要提醒：stocks 陣列中必須包含正好 ${userSettings.stockCount} 個股票物件！**
 
 {
   "analysisTime": "2025-11-22 14:30:00",
