@@ -184,7 +184,8 @@
 
     <script>
         const API_KEY = 'AIzaSyCodEpEezZ804-7TlwSJj5o19QBX1fpGSM';
-        const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
+        // 升級到 Gemini 2.0 Flash Thinking（支援更長的輸出）
+        const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-thinking-exp-1219:generateContent';
 
         // 獲取真實台股股價（使用多個來源）
         async function getRealStockPrice(symbol) {
