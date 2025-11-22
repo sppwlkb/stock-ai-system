@@ -1094,8 +1094,50 @@ ${realPriceInfo}
                                             const contextEnd = Math.min(workingJson.length, errPos + 20);
                                             const contextStr = workingJson.substring(contextStart, contextEnd);
                                             console.log(`上下文: "${contextStr}"`);
-                                            console.log(`當前字符: "${char}" (${char ? char.charCodeAt(0) : 'N/A'})`);
+                                            console.log(`當前字符: "${char}" (${char ? char.charCodeAt(0) : 'undefined'})`);
                                             console.log(`前一字符: "${prevChar}" (${prevChar ? prevChar.charCodeAt(0) : 'N/A'})`);
+
+                                            // 檢測 JSON 是否不完整
+                                            if (char === undefined && errPos === workingJson.length) {
+                                                console.error('❌ 檢測到 JSON 不完整（突然截斷）');
+                                                console.error(`JSON 在位置 ${errPos} 處結束，但結構不完整`);
+                                                console.error('前一字符:', prevChar);
+
+                                                // 檢查是否缺少結尾符號
+                                                const lastChars = workingJson.slice(-50);
+                                                console.log('JSON 末尾 50 字符:', lastChars);
+
+                                                // 計算需要的結尾符號
+                                                let openBraces = 0;
+                                                let openBrackets = 0;
+                                                for (let i = 0; i < workingJson.length; i++) {
+                                                    if (workingJson[i] === '{') openBraces++;
+                                                    else if (workingJson[i] === '}') openBraces--;
+                                                    else if (workingJson[i] === '[') openBrackets++;
+                                                    else if (workingJson[i] === ']') openBrackets--;
+                                                }
+
+                                                console.log(`未閉合的 { : ${openBraces} 個`);
+                                                console.log(`未閉合的 [ : ${openBrackets} 個`);
+
+                                                // 如果有很多未閉合的符號，表示 JSON 嚴重不完整
+                                                if (openBraces > 2 || openBrackets > 1) {
+                                                    console.error('❌ JSON 嚴重不完整，無法自動修復');
+                                                    console.error('建議：要求 AI 重新生成完整的 JSON');
+                                                    break; // 放棄修復
+                                                }
+
+                                                // 嘗試添加缺少的結尾符號
+                                                console.log('嘗試添加缺少的結尾符號...');
+                                                for (let i = 0; i < openBrackets; i++) {
+                                                    workingJson += ']';
+                                                }
+                                                for (let i = 0; i < openBraces; i++) {
+                                                    workingJson += '}';
+                                                }
+                                                console.log(`添加了 ${openBrackets} 個 ] 和 ${openBraces} 個 }`);
+                                                continue;
+                                            }
 
                                             // 智能修復策略
                                             // 策略1：} 後面缺少逗號
