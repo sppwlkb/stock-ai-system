@@ -874,23 +874,74 @@ ${realPriceInfo}
                                         if (!errMatch) break;
 
                                         const errPos = parseInt(errMatch[1]);
-                                        console.log(`🔧 第 ${attempts} 次修復，位置 ${errPos}`);
+                                        console.log(`🔧 第 ${attempts} 次修復，位置 ${errPos}，JSON長度 ${workingJson.length}`);
 
-                                        // 嘗試最可能的修復：插入逗號
+                                        // 檢查位置是否有效
+                                        if (errPos >= workingJson.length) {
+                                            console.log('錯誤位置超出範圍，嘗試在末尾添加缺失的字符');
+                                            // 可能缺少結尾的 } 或 ]
+                                            workingJson += '}';
+                                            continue;
+                                        }
+
                                         if (errPos > 0 && errPos < workingJson.length) {
                                             const char = workingJson[errPos];
                                             const prevChar = workingJson[errPos - 1];
+                                            const prev2Char = errPos > 1 ? workingJson[errPos - 2] : '';
+                                            const prev3Char = errPos > 2 ? workingJson[errPos - 3] : '';
 
-                                            // 根據上下文決定修復方式
-                                            if (char === '"' && (prevChar === '"' || prevChar === '}' || prevChar === ']')) {
+                                            // 獲取更多上下文
+                                            const contextStart = Math.max(0, errPos - 20);
+                                            const contextEnd = Math.min(workingJson.length, errPos + 20);
+                                            const contextStr = workingJson.substring(contextStart, contextEnd);
+                                            console.log(`上下文: "${contextStr}"`);
+                                            console.log(`當前字符: "${char}" (${char ? char.charCodeAt(0) : 'N/A'})`);
+                                            console.log(`前一字符: "${prevChar}" (${prevChar ? prevChar.charCodeAt(0) : 'N/A'})`);
+
+                                            // 智能修復策略
+                                            if (prevChar === '}' && (char === '\n' || char === ' ' || char === '\r')) {
+                                                // } 後面是空白字符，可能缺少逗號
+                                                // 查找下一個非空白字符
+                                                let nextNonSpace = errPos;
+                                                while (nextNonSpace < workingJson.length && /\s/.test(workingJson[nextNonSpace])) {
+                                                    nextNonSpace++;
+                                                }
+                                                const nextChar = workingJson[nextNonSpace];
+                                                if (nextChar === '"' || nextChar === '{') {
+                                                    // 在 } 後插入逗號
+                                                    workingJson = workingJson.substring(0, errPos) + ',' + workingJson.substring(errPos);
+                                                    console.log('修復：在 } 後插入逗號');
+                                                } else {
+                                                    // 移除空白字符
+                                                    workingJson = workingJson.substring(0, errPos) + workingJson.substring(errPos + 1);
+                                                    console.log('修復：移除空白字符');
+                                                }
+                                            } else if (prevChar === ']' && (char === '\n' || char === ' ' || char === '\r')) {
+                                                // ] 後面是空白字符，可能缺少逗號
+                                                let nextNonSpace = errPos;
+                                                while (nextNonSpace < workingJson.length && /\s/.test(workingJson[nextNonSpace])) {
+                                                    nextNonSpace++;
+                                                }
+                                                const nextChar = workingJson[nextNonSpace];
+                                                if (nextChar === '"' || nextChar === '{') {
+                                                    workingJson = workingJson.substring(0, errPos) + ',' + workingJson.substring(errPos);
+                                                    console.log('修復：在 ] 後插入逗號');
+                                                } else {
+                                                    workingJson = workingJson.substring(0, errPos) + workingJson.substring(errPos + 1);
+                                                    console.log('修復：移除空白字符');
+                                                }
+                                            } else if (char === '"' && (prevChar === '"' || prevChar === '}' || prevChar === ']')) {
                                                 // 缺少逗號
                                                 workingJson = workingJson.substring(0, errPos) + ',' + workingJson.substring(errPos);
+                                                console.log('修復：插入逗號');
                                             } else if (char === '{' && prevChar === '}') {
                                                 // 缺少逗號
                                                 workingJson = workingJson.substring(0, errPos) + ',' + workingJson.substring(errPos);
+                                                console.log('修復：插入逗號');
                                             } else {
                                                 // 移除錯誤字符
                                                 workingJson = workingJson.substring(0, errPos) + workingJson.substring(errPos + 1);
+                                                console.log('修復：移除錯誤字符');
                                             }
                                         } else {
                                             break;
