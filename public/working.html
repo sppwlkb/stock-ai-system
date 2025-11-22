@@ -65,6 +65,28 @@
             return null;
         }
 
+        // 計算動態獲利目標（根據股價和波動性）
+        function calculateProfitTarget(price, volatility = 'medium') {
+            // 根據股價區間設定不同的獲利目標
+            let profitPercent;
+
+            if (price < 10) {
+                // 低價股：波動大，設定較高目標
+                profitPercent = volatility === 'high' ? 0.15 : 0.12; // 12-15%
+            } else if (price < 20) {
+                // 中低價股
+                profitPercent = volatility === 'high' ? 0.12 : 0.10; // 10-12%
+            } else if (price < 30) {
+                // 中價股
+                profitPercent = volatility === 'high' ? 0.10 : 0.08; // 8-10%
+            } else {
+                // 高價股：波動小，設定較低目標
+                profitPercent = volatility === 'high' ? 0.08 : 0.06; // 6-8%
+            }
+
+            return profitPercent;
+        }
+
         // 驗證並修正 AI 推薦的股票價格
         async function validateAndCorrectStocks(stocks) {
             const correctedStocks = [];
@@ -75,11 +97,22 @@
                 if (realData) {
                     // 使用真實股價
                     const realPrice = realData.price;
+
+                    // 判斷波動性（可以從技術指標或 AI 分析中獲取）
+                    const volatility = stock.technicalAnalysis?.volatility || 'medium';
+
+                    // 動態計算獲利目標
+                    const profitPercent = calculateProfitTarget(realPrice, volatility);
+
+                    // 計算交易數據
                     const shares = Math.floor(10000 / realPrice);
-                    const targetPrice = (realPrice * 1.05).toFixed(2); // 5% 獲利目標
+                    const targetPrice = (realPrice * (1 + profitPercent)).toFixed(2);
                     const stopLoss = (realPrice * 0.98).toFixed(2); // 2% 止損
                     const expectedProfit = ((targetPrice - realPrice) * shares).toFixed(0);
-                    const profitPercent = '5.0%';
+                    const profitPercentDisplay = (profitPercent * 100).toFixed(1) + '%';
+
+                    // 計算風險報酬比
+                    const riskRewardRatio = (profitPercent / 0.02).toFixed(2); // 獲利% / 止損%
 
                     correctedStocks.push({
                         ...stock,
@@ -90,9 +123,11 @@
                         shares: shares.toString(),
                         volume: realData.volume.toString(),
                         expectedProfit: expectedProfit,
-                        profitPercent: profitPercent,
+                        profitPercent: profitPercentDisplay,
+                        riskRewardRatio: riskRewardRatio,
                         investment: '10000',
-                        dataSource: '台灣證交所即時數據'
+                        dataSource: '台灣證交所即時數據',
+                        calculationMethod: `動態獲利目標（${profitPercentDisplay}）基於股價 $${realPrice} 和波動性`
                     });
                 } else {
                     // 如果無法獲取真實數據，標記為無效
@@ -116,7 +151,16 @@
             stocksDiv.innerHTML = '';
 
             try {
+                // 添加隨機性，確保每次推薦不同股票
+                const timestamp = new Date().toISOString();
+                const randomSeed = Math.random().toString(36).substring(7);
+
                 const prompt = `你是一位有20年經驗的資深股市分析師，專注於台股當沖交易。
+
+**分析時間：${timestamp}**
+**分析編號：${randomSeed}**
+
+⚠️ 重要：這是第 ${Math.floor(Math.random() * 100) + 1} 次分析，請推薦與之前不同的股票！
 
 **你的專業背景：**
 - 精通各國股票行情，深入了解當下各國經濟局勢
@@ -128,8 +172,14 @@
 找出適合當沖的台股標的，條件如下：
 1. **價格條件**：股價低於50元
 2. **成交量條件**：當日成交量超過50萬股
-3. **獲利目標**：有足夠動能上漲，預期漲幅可達5%以上
+3. **獲利目標**：根據股票波動性設定，最低8%，最高15%
 4. **投資金額**：每次以10,000元入場
+
+**重要：每次分析必須推薦不同的股票！**
+- 不要重複推薦相同的股票
+- 從台股市場中尋找符合條件的不同標的
+- 優先推薦當日有異動、成交量放大、技術指標轉強的股票
+- 考慮不同產業的股票（半導體、面板、航運、金融、傳產等）
 
 **必須分析的因素：**
 
@@ -199,7 +249,8 @@
         "bollingerBand": "突破上軌",
         "vwap": "價格在VWAP之上",
         "volume": "超過10日均量2倍",
-        "tdSequential": "TD Setup完成，進入倒計時"
+        "tdSequential": "TD Setup完成，進入倒計時",
+        "volatility": "high 或 medium 或 low（根據股票波動性）"
       },
       "candlestickPattern": "看漲吞噬（Bullish Engulfing）",
       "chipAnalysis": "主力持續買入，籌碼集中度上升",
@@ -457,10 +508,26 @@
                         </div>
                     </div>
 
-                    <div class="mt-4 bg-green-900 rounded-lg p-3">
-                        <p class="text-sm text-gray-300">
-                            投資金額：$${stock.investment} | 購買股數：${stock.shares}股 | 獲利率：${stock.profitPercent}
-                        </p>
+                    <div class="mt-4 space-y-2">
+                        <div class="bg-green-900 rounded-lg p-3">
+                            <p class="text-sm text-gray-300">
+                                投資金額：$${stock.investment} | 購買股數：${stock.shares}股 | 獲利率：${stock.profitPercent}
+                            </p>
+                        </div>
+                        ${stock.riskRewardRatio ? `
+                        <div class="bg-blue-900 rounded-lg p-3">
+                            <p class="text-sm text-yellow-400">
+                                風險報酬比：1:${stock.riskRewardRatio} （每承擔1元風險，可獲得${stock.riskRewardRatio}元報酬）
+                            </p>
+                        </div>
+                        ` : ''}
+                        ${stock.calculationMethod ? `
+                        <div class="bg-gray-800 rounded-lg p-3">
+                            <p class="text-xs text-gray-400">
+                                💡 ${stock.calculationMethod}
+                            </p>
+                        </div>
+                        ` : ''}
                     </div>
                 </div>
             `).join('');
