@@ -819,31 +819,8 @@ ${realPriceInfo}
                         <div class="bg-gray-900 rounded-lg p-2">
                             <!-- TradingView Widget -->
                             <div class="tradingview-widget-container" style="height: 400px;">
-                                <div id="tradingview_${stock.symbol}" style="height: 100%;"></div>
+                                <div id="tradingview_${stock.symbol}_${index}" style="height: 100%;"></div>
                             </div>
-                            <script type="text/javascript">
-                                new TradingView.widget({
-                                    "width": "100%",
-                                    "height": 400,
-                                    "symbol": "TWSE:${stock.symbol}",
-                                    "interval": "D",
-                                    "timezone": "Asia/Taipei",
-                                    "theme": "dark",
-                                    "style": "1",
-                                    "locale": "zh_TW",
-                                    "toolbar_bg": "#f1f3f6",
-                                    "enable_publishing": false,
-                                    "hide_side_toolbar": false,
-                                    "allow_symbol_change": false,
-                                    "studies": [
-                                        "RSI@tv-basicstudies",
-                                        "MACD@tv-basicstudies",
-                                        "BB@tv-basicstudies",
-                                        "Volume@tv-basicstudies"
-                                    ],
-                                    "container_id": "tradingview_${stock.symbol}"
-                                });
-                            </script>
                         </div>
                         <div class="mt-2 text-xs text-gray-400">
                             <p>圖表包含：K線、RSI、MACD、布林帶、成交量</p>
@@ -998,6 +975,41 @@ ${realPriceInfo}
                 </div>
             `).join('');
             stocksDiv.innerHTML += summaryTable + stocksHTML;
+
+            // 初始化 TradingView 圖表
+            if (typeof TradingView !== 'undefined') {
+                stocks.forEach((stock, index) => {
+                    setTimeout(() => {
+                        try {
+                            new TradingView.widget({
+                                "width": "100%",
+                                "height": 400,
+                                "symbol": `TWSE:${stock.symbol}`,
+                                "interval": "D",
+                                "timezone": "Asia/Taipei",
+                                "theme": "dark",
+                                "style": "1",
+                                "locale": "zh_TW",
+                                "toolbar_bg": "#f1f3f6",
+                                "enable_publishing": false,
+                                "hide_side_toolbar": false,
+                                "allow_symbol_change": false,
+                                "studies": [
+                                    "RSI@tv-basicstudies",
+                                    "MACD@tv-basicstudies",
+                                    "BB@tv-basicstudies",
+                                    "Volume@tv-basicstudies"
+                                ],
+                                "container_id": `tradingview_${stock.symbol}_${index}`
+                            });
+                        } catch (error) {
+                            console.error(`初始化 ${stock.symbol} 圖表失敗:`, error);
+                        }
+                    }, index * 100); // 延遲初始化，避免同時載入太多圖表
+                });
+            } else {
+                console.warn('TradingView 腳本未載入');
+            }
         }
 
         console.log('✅ 系統初始化完成');
