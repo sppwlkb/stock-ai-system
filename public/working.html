@@ -744,14 +744,18 @@ ${realPriceInfo}
                     console.log('清理後的 JSON 前 500 字符:', jsonStr.substring(0, 500));
 
                     let stockData;
+                    let parseError = null;
+
                     try {
                         stockData = JSON.parse(jsonStr);
-                    } catch (parseError) {
-                        console.error('❌ JSON 解析錯誤:', parseError);
-                        console.error('錯誤訊息:', parseError.message);
+                        console.log('✅ JSON 解析成功');
+                    } catch (err) {
+                        parseError = err;
+                        console.error('❌ JSON 解析錯誤:', err);
+                        console.error('錯誤訊息:', err.message);
 
                         // 找出錯誤位置
-                        const errorMatch = parseError.message.match(/position (\d+)/);
+                        const errorMatch = err.message.match(/position (\d+)/);
                         if (errorMatch) {
                             const pos = parseInt(errorMatch[1]);
                             const start = Math.max(0, pos - 100);
@@ -880,10 +884,15 @@ ${realPriceInfo}
                                     console.error('錯誤位置:', pos);
                                     console.error('錯誤上下文:', context);
                                     console.error('完整 JSON（前 1000 字符）:', jsonStr.substring(0, 1000));
-                                    throw new Error(`JSON 格式錯誤：${parseError.message}。請重新分析。`);
                                 }
                             }
                         } else {
+                            console.error('❌ 無法找到錯誤位置');
+                            console.error('完整錯誤訊息:', parseError.message);
+                        }
+
+                        // 如果所有修復都失敗，拋出錯誤
+                        if (!stockData) {
                             throw new Error(`JSON 格式錯誤：${parseError.message}。請重新分析。`);
                         }
                     }
