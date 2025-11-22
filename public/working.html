@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>小七AI選股系統 v2.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- TradingView 輕量級圖表 -->
-    <script src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body class="bg-gray-900 text-white min-h-screen">
     <div class="container mx-auto px-4 py-8">
@@ -1146,26 +1144,35 @@ ${realPriceInfo}
                     </div>
                     ` : ''}
 
-                    <!-- K線圖 -->
-                    <div class="bg-gray-800 rounded-lg p-4 mb-4">
-                        <h4 class="font-semibold text-yellow-400 mb-3 flex items-center justify-between">
-                            <span>📈 K線圖與技術指標 - ${stock.name} (${stock.symbol})</span>
-                            <button onclick="window.open('https://tw.stock.yahoo.com/quote/${stock.symbol}.TW', '_blank')"
-                                    class="text-xs bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded">
-                                查看完整圖表
-                            </button>
-                        </h4>
-                        <div class="bg-gray-900 rounded-lg p-2">
-                            <!-- TradingView 輕量級圖表 -->
-                            <div style="height:400px; background-color: #1e1e1e; border-radius: 8px; overflow: hidden;">
-                                <div class="tradingview-widget-container" style="height:100%; width:100%;">
-                                    <div class="tradingview-widget-container__widget" id="tradingview_chart_${stock.symbol}_${index}"></div>
+                    <!-- K線圖連結 -->
+                    <div class="bg-gradient-to-r from-gray-800 to-gray-900 rounded-lg p-4 mb-4 border-l-4 border-yellow-400">
+                        <h4 class="font-semibold text-yellow-400 mb-3">📈 K線圖與技術指標</h4>
+                        <div class="bg-gray-900 rounded-lg p-4">
+                            <div class="text-center">
+                                <p class="text-gray-300 mb-4">
+                                    <span class="text-xl font-bold text-white">${stock.name} (${stock.symbol})</span>
+                                </p>
+                                <p class="text-gray-400 text-sm mb-4">
+                                    點擊下方按鈕查看完整的 K 線圖、技術指標（RSI、MACD、KD、布林帶）和即時報價
+                                </p>
+                                <div class="flex gap-3 justify-center flex-wrap">
+                                    <button onclick="window.open('https://tw.stock.yahoo.com/quote/${stock.symbol}.TW', '_blank')"
+                                            class="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-lg font-semibold shadow-lg transform hover:scale-105 transition-all">
+                                        📊 Yahoo 股市圖表
+                                    </button>
+                                    <button onclick="window.open('https://www.cnyes.com/twstock/${stock.symbol}', '_blank')"
+                                            class="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 rounded-lg font-semibold shadow-lg transform hover:scale-105 transition-all">
+                                        📈 鉅亨網圖表
+                                    </button>
+                                    <button onclick="window.open('https://goodinfo.tw/tw/StockDetail.asp?STOCK_ID=${stock.symbol}', '_blank')"
+                                            class="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-6 py-3 rounded-lg font-semibold shadow-lg transform hover:scale-105 transition-all">
+                                        📉 Goodinfo 圖表
+                                    </button>
                                 </div>
+                                <p class="text-gray-500 text-xs mt-4">
+                                    💡 提示：建議使用 Yahoo 股市或鉅亨網查看完整的技術分析圖表
+                                </p>
                             </div>
-                        </div>
-                        <div class="mt-2 text-xs text-gray-400">
-                            <p>圖表代碼：${stock.symbol}.TW (台灣證交所)</p>
-                            <p>包含：K線、成交量、技術指標</p>
                         </div>
                     </div>
 
@@ -1318,53 +1325,7 @@ ${realPriceInfo}
             `).join('');
             stocksDiv.innerHTML += summaryTable + stocksHTML;
 
-            // 初始化 TradingView 圖表
-            console.log('✅ 股票分析顯示完成，開始初始化 K 線圖...');
-
-            if (typeof TradingView !== 'undefined') {
-                stocks.forEach((stock, index) => {
-                    setTimeout(() => {
-                        try {
-                            const containerId = `tradingview_chart_${stock.symbol}_${index}`;
-                            const container = document.getElementById(containerId);
-
-                            if (!container) {
-                                console.error(`找不到容器: ${containerId}`);
-                                return;
-                            }
-
-                            // 台股代碼格式：股票代號.TW
-                            const symbol = `${stock.symbol}.TW`;
-                            console.log(`初始化圖表: ${stock.name} (${symbol})`);
-
-                            new TradingView.widget({
-                                "autosize": true,
-                                "symbol": symbol,
-                                "interval": "D",
-                                "timezone": "Asia/Taipei",
-                                "theme": "dark",
-                                "style": "1",
-                                "locale": "zh_TW",
-                                "toolbar_bg": "#1e1e1e",
-                                "enable_publishing": false,
-                                "hide_top_toolbar": false,
-                                "hide_legend": false,
-                                "save_image": false,
-                                "container_id": containerId,
-                                "studies": [
-                                    "Volume@tv-basicstudies"
-                                ]
-                            });
-
-                            console.log(`✅ ${stock.name} (${symbol}) 圖表初始化成功`);
-                        } catch (error) {
-                            console.error(`初始化 ${stock.symbol} 圖表失敗:`, error);
-                        }
-                    }, index * 500); // 延遲初始化，避免同時載入太多圖表
-                });
-            } else {
-                console.error('❌ TradingView 腳本未載入');
-            }
+            console.log('✅ 股票分析顯示完成！K線圖連結已準備好。');
         }
 
         console.log('✅ 系統初始化完成');
