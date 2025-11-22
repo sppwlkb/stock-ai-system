@@ -161,6 +161,49 @@
             };
         }
 
+        // 強制替換文字中的錯誤價格
+        function forceReplaceWrongPrices(text, realPrice) {
+            if (!text) return text;
+
+            // 找出文字中所有看起來像價格的數字（20-50之間，因為大部分台股在這個範圍）
+            const wrongPrices = text.match(/\d+\.?\d*/g) || [];
+
+            // 替換明顯錯誤的價格（與真實股價差異超過50%）
+            let correctedText = text;
+            wrongPrices.forEach(price => {
+                const priceNum = parseFloat(price);
+                if (priceNum > 20 && priceNum < 50 && Math.abs(priceNum - realPrice) / realPrice > 0.5) {
+                    // 這個價格明顯錯誤，替換為真實股價
+                    const regex = new RegExp(`\\b${price}\\b`, 'g');
+                    correctedText = correctedText.replace(regex, realPrice.toFixed(2));
+                }
+            });
+
+            return correctedText;
+        }
+
+        // 基於真實股價重新生成策略
+        function regenerateStrategies(realPrice) {
+            const profitPercent = calculateProfitTarget(realPrice, 'medium');
+
+            // 計算目標價
+            const target1 = (realPrice * (1 + profitPercent * 0.6)).toFixed(2);
+            const target2 = (realPrice * (1 + profitPercent * 0.8)).toFixed(2);
+            const target3 = (realPrice * (1 + profitPercent)).toFixed(2);
+            const stopLoss = (realPrice * 0.98).toFixed(2);
+
+            // 計算進場價位
+            const aggressiveEntry = realPrice.toFixed(2);
+            const stableEntry = (realPrice * 0.97).toFixed(2);
+            const conservativeEntry = (realPrice * 0.92).toFixed(2);
+
+            return {
+                entryStrategy: `當前價格${realPrice.toFixed(2)}元激進型當前價進場首批百分之50突破${(realPrice * 1.02).toFixed(2)}加碼百分之30，穩健型回檔${stableEntry}進場，保守型回檔${conservativeEntry}進場`,
+                exitStrategy: `第一目標${target1}元出場百分之30第二目標${target2}元出場百分之40第三目標${target3}元出場百分之30停損${stopLoss}元MACD死叉立即出場`,
+                targets: { target1, target2, target3, stopLoss }
+            };
+        }
+
         // 驗證並修正 AI 推薦的股票價格
         async function validateAndCorrectStocks(stocks) {
             const correctedStocks = [];
@@ -171,6 +214,10 @@
                 if (realData) {
                     // 使用真實股價
                     const realPrice = realData.price;
+
+                    console.log(`\n=== 修正 ${stock.name} (${stock.symbol}) 的數據 ===`);
+                    console.log(`真實股價: ${realPrice}元`);
+                    console.log(`真實成交量: ${realData.volume}股`);
 
                     // 判斷波動性（可以從技術指標或 AI 分析中獲取）
                     const volatility = stock.technicalAnalysis?.volatility || 'medium';
@@ -191,12 +238,21 @@
                     // 基於真實股價計算價格區間
                     const priceRange = calculatePriceRange(realPrice);
 
-                    console.log(`${stock.name} (${stock.symbol}) 價格區間計算:`, {
-                        realPrice: realPrice,
-                        priceRange: priceRange
-                    });
+                    // 重新生成進出場策略（基於真實股價）
+                    const strategies = regenerateStrategies(realPrice);
 
-                    // 創建修正後的股票數據，確保價格區間使用計算值
+                    console.log(`價格區間:`, priceRange);
+                    console.log(`重新生成的策略:`, strategies);
+
+                    // 強制替換所有文字中的錯誤價格
+                    const correctedFundamentals = forceReplaceWrongPrices(stock.fundamentals, realPrice);
+                    const correctedTechnicalAnalysis = forceReplaceWrongPrices(stock.technicalAnalysis, realPrice);
+                    const correctedReason = forceReplaceWrongPrices(stock.reason, realPrice);
+
+                    console.log(`原始操作理由長度: ${stock.reason?.length || 0}字`);
+                    console.log(`修正後操作理由長度: ${correctedReason?.length || 0}字`);
+
+                    // 創建修正後的股票數據
                     const correctedStock = {
                         symbol: stock.symbol,
                         name: stock.name,
@@ -209,22 +265,22 @@
                         expectedProfit: expectedProfit,
                         profitPercent: profitPercentDisplay,
                         riskRewardRatio: riskRewardRatio,
-                        priceRange: priceRange,  // 強制使用計算後的價格區間
+                        priceRange: priceRange,
                         investment: '10000',
                         dataSource: '台灣證交所即時數據',
                         calculationMethod: `動態獲利目標（${profitPercentDisplay}）基於股價 $${realPrice} 和波動性`,
                         priceRangeNote: `價格區間基於真實股價 $${realPrice.toFixed(2)} 計算`,
-                        // 保留其他 AI 分析數據
-                        fundamentals: stock.fundamentals,
-                        technicalAnalysis: stock.technicalAnalysis,
+                        // 使用修正後的數據
+                        fundamentals: correctedFundamentals,
+                        technicalAnalysis: correctedTechnicalAnalysis,
                         chipAnalysis: stock.chipAnalysis,
                         newsAnalysis: stock.newsAnalysis,
                         candlestickPattern: stock.candlestickPattern,
-                        reason: stock.reason,
+                        reason: correctedReason,
                         usImpact: stock.usImpact,
                         fedImpact: stock.fedImpact,
-                        entryStrategy: stock.entryStrategy,
-                        exitStrategy: stock.exitStrategy,
+                        entryStrategy: strategies.entryStrategy,  // 使用重新生成的策略
+                        exitStrategy: strategies.exitStrategy,    // 使用重新生成的策略
                         riskFactors: stock.riskFactors
                     };
 
