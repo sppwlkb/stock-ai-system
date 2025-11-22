@@ -1077,9 +1077,17 @@ ${realPriceInfo}
                                         console.log(`🔧 第 ${attempts} 次修復，位置 ${errPos}，JSON長度 ${workingJson.length}`);
 
                                         // 檢查位置是否有效
-                                        if (errPos >= workingJson.length) {
-                                            console.log('錯誤位置超出範圍');
-                                            // 檢查 JSON 末尾是否有多餘的 } 或 ]
+                                        // errPos 是從 0 開始的索引
+                                        // 如果 errPos > length，表示錯誤位置超出範圍
+                                        // 如果 errPos === length，表示錯誤在最後一個字符之後（末尾）
+                                        if (errPos > workingJson.length) {
+                                            console.log('錯誤位置超出範圍，可能缺少結尾字符');
+                                            workingJson += '}';
+                                            continue;
+                                        }
+
+                                        if (errPos === workingJson.length) {
+                                            console.log('錯誤位置在 JSON 末尾');
                                             const lastChars = workingJson.slice(-10);
                                             console.log('JSON 末尾字符:', lastChars);
 
