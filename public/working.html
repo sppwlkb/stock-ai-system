@@ -1057,8 +1057,20 @@ ${realPriceInfo}
 
                                         // 檢查位置是否有效
                                         if (errPos >= workingJson.length) {
-                                            console.log('錯誤位置超出範圍，嘗試在末尾添加缺失的字符');
-                                            // 可能缺少結尾的 } 或 ]
+                                            console.log('錯誤位置超出範圍');
+                                            // 檢查 JSON 末尾是否有多餘的 } 或 ]
+                                            const lastChars = workingJson.slice(-10);
+                                            console.log('JSON 末尾字符:', lastChars);
+
+                                            // 如果末尾有多個 }，可能是多餘的
+                                            if (lastChars.match(/\}\}+$/)) {
+                                                console.log('檢測到末尾有多餘的 }，嘗試移除');
+                                                workingJson = workingJson.slice(0, -1);
+                                                continue;
+                                            }
+
+                                            // 否則可能缺少結尾字符
+                                            console.log('嘗試在末尾添加 }');
                                             workingJson += '}';
                                             continue;
                                         }
