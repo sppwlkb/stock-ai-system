@@ -230,6 +230,12 @@
 8. 【進場策略】具體的分批進場建議
 9. 【出場策略】目標價達成或技術轉弱的出場條件
 
+⚠️ **JSON 格式要求：**
+- 所有字串值必須使用雙引號
+- 不要在 JSON 中使用單引號
+- 不要在最後一個屬性後加逗號
+- 確保所有括號正確配對
+
 {
   "analysisTime": "2025-11-22 14:30:00",
   "marketAnalysis": {
@@ -255,33 +261,9 @@
         "fair": "44-46",
         "expensive": "46-48"
       },
-      "fundamentals": {
-        "revenue": "Q3營收年增25%",
-        "profit": "毛利率35%",
-        "industry": "產業龍頭",
-        "growth": "營收成長率25%"
-      },
-      "technicalAnalysis": {
-        "rsi7": "65",
-        "rsi14": "58",
-        "macd": "金叉確認，多頭排列",
-        "kdj": "黃金交叉，K值65",
-        "bollingerBand": "突破上軌",
-        "vwap": "價格在VWAP之上5%",
-        "volume": "超過10日均量2倍",
-        "tdSequential": "TD Setup完成，進入倒計時",
-        "volatility": "high",
-        "support": "10.2",
-        "resistance": "12.0"
-      },
-      "chipAnalysis": {
-        "foreign": "外資連續5日買超",
-        "dealer": "自營商買超",
-        "trust": "投信持平",
-        "retail": "散戶持股下降",
-        "concentration": "主力籌碼集中度68%",
-        "marginTrading": "融資減少，籌碼乾淨"
-      },
+      "fundamentals": "Q3營收年增25%，毛利率35%，產業龍頭地位",
+      "technicalAnalysis": "RSI(7)=65, RSI(14)=58, MACD金叉確認, KDJ黃金交叉, 布林帶突破上軌, 成交量超過10日均量2倍, 波動性:high, 支撐:10.2, 壓力:12.0",
+      "chipAnalysis": "外資連續5日買超, 自營商買超, 投信持平, 散戶持股下降, 主力籌碼集中度68%, 融資減少籌碼乾淨",
       "newsAnalysis": "獲得美國大廠新訂單，預計Q4營收再增30%，產業進入旺季",
       "candlestickPattern": "看漲吞噬（Bullish Engulfing）",
       "reason": "【基本面】公司Q3營收年增25%，毛利率提升至35%，產業龍頭地位穩固，獲利能力持續改善。【技術面】RSI(14)=65突破超賣區進入強勢區，MACD金叉確認且柱狀體放大，布林帶突破上軌且成交量放大2倍，顯示多頭動能強勁。KDJ指標黃金交叉，K值65處於上升趨勢。【籌碼面】外資連續5日買超累計3000張，主力籌碼集中度上升至68%，散戶持股下降，籌碼結構轉佳。融資減少顯示籌碼乾淨。【消息面】獲得美國大廠新訂單，預計Q4營收再增30%，產業進入旺季，訂單能見度高。【國際因素】美股那斯達克上漲1.5%帶動科技股，聯準會降息預期有利成長股估值提升，資金面寬鬆。【價格動能】突破月線壓力$10.5，下一目標$12.0，支撐位$10.2，量價配合良好。【風險評估】短期可能面臨獲利了結壓力，建議設定2%止損於$10.58，風險報酬比1:5優秀。【進場策略】建議分批進場，首批50%於$10.8，若突破$11.0加碼30%，剩餘20%保留。【出場策略】目標價$11.88達成後分批出場，或遇到技術指標轉弱（RSI>80或MACD死叉）立即出場。",
@@ -321,11 +303,40 @@
 
                 const data = await response.json();
                 const text = data.candidates[0].content.parts[0].text;
-                
-                // 解析 JSON
-                const jsonMatch = text.match(/\{[\s\S]*\}/);
+
+                console.log('AI 原始回應:', text);
+
+                // 解析 JSON - 更強健的處理
+                let jsonMatch = text.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
-                    const stockData = JSON.parse(jsonMatch[0]);
+                    let jsonStr = jsonMatch[0];
+
+                    // 清理可能的問題
+                    // 1. 移除註解
+                    jsonStr = jsonStr.replace(/\/\/.*$/gm, '');
+                    // 2. 移除多餘的逗號
+                    jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1');
+                    // 3. 修正單引號為雙引號
+                    jsonStr = jsonStr.replace(/'/g, '"');
+
+                    console.log('清理後的 JSON:', jsonStr);
+
+                    let stockData;
+                    try {
+                        stockData = JSON.parse(jsonStr);
+                    } catch (parseError) {
+                        console.error('JSON 解析錯誤:', parseError);
+                        console.error('錯誤位置:', parseError.message);
+
+                        // 嘗試找出錯誤位置
+                        const errorMatch = parseError.message.match(/position (\d+)/);
+                        if (errorMatch) {
+                            const pos = parseInt(errorMatch[1]);
+                            console.error('錯誤附近的內容:', jsonStr.substring(Math.max(0, pos - 50), pos + 50));
+                        }
+
+                        throw new Error(`JSON 格式錯誤：${parseError.message}。請重新分析。`);
+                    }
 
                     // 顯示市場分析（包含分析時間和交易提醒）
                     if (stockData.marketAnalysis) {
@@ -473,12 +484,7 @@
                     ${stock.fundamentals ? `
                     <div class="bg-gray-800 rounded-lg p-4 mb-4">
                         <h4 class="font-semibold text-green-400 mb-2">📊 基本面數據</h4>
-                        <div class="grid grid-cols-2 gap-2 text-sm">
-                            <div><span class="text-gray-400">營收成長：</span><span class="text-green-300">${stock.fundamentals.revenue}</span></div>
-                            <div><span class="text-gray-400">毛利率：</span><span class="text-green-300">${stock.fundamentals.profit}</span></div>
-                            <div><span class="text-gray-400">產業地位：</span><span class="text-blue-300">${stock.fundamentals.industry}</span></div>
-                            <div><span class="text-gray-400">成長率：</span><span class="text-green-300">${stock.fundamentals.growth}</span></div>
-                        </div>
+                        <p class="text-sm text-gray-300">${stock.fundamentals}</p>
                     </div>
                     ` : ''}
 
@@ -498,16 +504,7 @@
                     ${stock.technicalAnalysis ? `
                     <div class="bg-gray-800 rounded-lg p-4 mb-4">
                         <h4 class="font-semibold text-yellow-400 mb-2">📈 技術指標（小七娜娜指標）</h4>
-                        <div class="grid grid-cols-2 gap-2 text-sm">
-                            <div>RSI(7): ${stock.technicalAnalysis.rsi7}</div>
-                            <div>RSI(14): ${stock.technicalAnalysis.rsi14}</div>
-                            <div>MACD: ${stock.technicalAnalysis.macd}</div>
-                            <div>KDJ: ${stock.technicalAnalysis.kdj}</div>
-                            <div>布林帶: ${stock.technicalAnalysis.bollingerBand}</div>
-                            <div>VWAP: ${stock.technicalAnalysis.vwap}</div>
-                            <div class="col-span-2">成交量: ${stock.technicalAnalysis.volume}</div>
-                            ${stock.technicalAnalysis.tdSequential ? `<div class="col-span-2 text-yellow-400">神奇九轉: ${stock.technicalAnalysis.tdSequential}</div>` : ''}
-                        </div>
+                        <p class="text-sm text-gray-300">${stock.technicalAnalysis}</p>
                     </div>
                     ` : ''}
 
@@ -519,23 +516,11 @@
                     </div>
                     ` : ''}
 
-                    <!-- 籌碼分析（詳細版）-->
-                    ${stock.chipAnalysis && typeof stock.chipAnalysis === 'object' ? `
-                    <div class="bg-gray-800 rounded-lg p-4 mb-4">
-                        <h4 class="font-semibold text-purple-400 mb-3">💎 籌碼分析</h4>
-                        <div class="grid grid-cols-2 gap-2 text-sm">
-                            ${stock.chipAnalysis.foreign ? `<div><span class="text-gray-400">外資：</span><span class="text-green-300">${stock.chipAnalysis.foreign}</span></div>` : ''}
-                            ${stock.chipAnalysis.dealer ? `<div><span class="text-gray-400">自營商：</span><span class="text-blue-300">${stock.chipAnalysis.dealer}</span></div>` : ''}
-                            ${stock.chipAnalysis.trust ? `<div><span class="text-gray-400">投信：</span><span class="text-yellow-300">${stock.chipAnalysis.trust}</span></div>` : ''}
-                            ${stock.chipAnalysis.retail ? `<div><span class="text-gray-400">散戶：</span><span class="text-red-300">${stock.chipAnalysis.retail}</span></div>` : ''}
-                            ${stock.chipAnalysis.concentration ? `<div class="col-span-2"><span class="text-gray-400">籌碼集中度：</span><span class="text-green-300 font-semibold">${stock.chipAnalysis.concentration}</span></div>` : ''}
-                            ${stock.chipAnalysis.marginTrading ? `<div class="col-span-2"><span class="text-gray-400">融資融券：</span><span class="text-blue-300">${stock.chipAnalysis.marginTrading}</span></div>` : ''}
-                        </div>
-                    </div>
-                    ` : stock.chipAnalysis ? `
+                    <!-- 籌碼分析 -->
+                    ${stock.chipAnalysis ? `
                     <div class="bg-gray-800 rounded-lg p-4 mb-4">
                         <h4 class="font-semibold text-purple-400 mb-2">💎 籌碼分析</h4>
-                        <p class="text-gray-300">${stock.chipAnalysis}</p>
+                        <p class="text-sm text-gray-300">${stock.chipAnalysis}</p>
                     </div>
                     ` : ''}
 
