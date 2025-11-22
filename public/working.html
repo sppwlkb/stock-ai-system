@@ -654,6 +654,9 @@
 
                 const prompt = `你是一位有20年經驗的資深股市分析師，專注於台股當沖交易。
 
+🚨🚨🚨 **最重要的強制要求：用戶要求推薦 ${userSettings.stockCount} 支股票，你必須推薦正好 ${userSettings.stockCount} 支！** 🚨🚨🚨
+**不是 3 支，不是 5 支，是 ${userSettings.stockCount} 支！請在完成前數一數你推薦的股票數量！**
+
 **分析時間：${timestamp}**
 **分析編號：${randomSeed}**
 
@@ -723,14 +726,34 @@ ${realPriceInfo}
    - 當前價格位置
 
 **輸出要求：**
-🚨 **必須推薦 ${userSettings.stockCount} 支股票，不能多也不能少！**
+🚨🚨🚨 **強制要求：必須推薦正好 ${userSettings.stockCount} 支股票！** 🚨🚨🚨
 
-選出 ${userSettings.stockCount} 支最適合當沖的台股，以 JSON 格式回應。
+**這不是建議，這是強制要求！**
+- 用戶要求：${userSettings.stockCount} 支股票
+- 你必須推薦：${userSettings.stockCount} 支股票
+- 不能是 3 支，不能是 5 支，必須是 ${userSettings.stockCount} 支！
 
-⚠️ **極度重要：**
-1. 你必須提供包含具體數據的專業分析
-2. **stocks 陣列中必須包含正好 ${userSettings.stockCount} 個股票物件**
-3. 如果你只推薦了 3 支股票，但用戶要求 ${userSettings.stockCount} 支，這是錯誤的！
+⚠️ **極度重要（違反將導致系統錯誤）：**
+1. stocks 陣列中必須包含正好 ${userSettings.stockCount} 個股票物件
+2. 每個股票都必須有完整的分析數據
+3. 如果你只推薦了 3 支股票，但用戶要求 ${userSettings.stockCount} 支，你的回應將被拒絕！
+4. 請數一數你推薦的股票數量，確保正好是 ${userSettings.stockCount} 支！
+
+**範例：如果用戶要求 10 支股票，你的 JSON 應該是：**
+{
+  "stocks": [
+    {...},  // 第 1 支
+    {...},  // 第 2 支
+    {...},  // 第 3 支
+    {...},  // 第 4 支
+    {...},  // 第 5 支
+    {...},  // 第 6 支
+    {...},  // 第 7 支
+    {...},  // 第 8 支
+    {...},  // 第 9 支
+    {...}   // 第 10 支
+  ]
+}
 
 **強制要求（必須遵守）：**
 
