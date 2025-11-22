@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>小七AI選股系統 v2.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- TradingView 輕量級圖表 -->
+    <script src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body class="bg-gray-900 text-white min-h-screen">
     <div class="container mx-auto px-4 py-8">
@@ -1153,18 +1155,15 @@ ${realPriceInfo}
                             </button>
                         </h4>
                         <div class="bg-gray-900 rounded-lg p-2">
-                            <!-- Yahoo Finance 嵌入式圖表 -->
-                            <iframe
-                                src="https://tw.stock.yahoo.com/quote/${stock.symbol}.TW/chart"
-                                width="100%"
-                                height="400"
-                                frameborder="0"
-                                style="border-radius: 8px;"
-                                id="chart_${stock.symbol}_${index}">
-                            </iframe>
+                            <!-- TradingView 輕量級圖表 -->
+                            <div style="height:400px; background-color: #1e1e1e; border-radius: 8px; overflow: hidden;">
+                                <div class="tradingview-widget-container" style="height:100%; width:100%;">
+                                    <div class="tradingview-widget-container__widget" id="tradingview_chart_${stock.symbol}_${index}"></div>
+                                </div>
+                            </div>
                         </div>
                         <div class="mt-2 text-xs text-gray-400">
-                            <p>圖表來源：Yahoo 股市 - ${stock.name} (${stock.symbol}.TW)</p>
+                            <p>圖表代碼：${stock.symbol}.TW (台灣證交所)</p>
                             <p>包含：K線、成交量、技術指標</p>
                         </div>
                     </div>
@@ -1318,8 +1317,53 @@ ${realPriceInfo}
             `).join('');
             stocksDiv.innerHTML += summaryTable + stocksHTML;
 
-            // Yahoo Finance 圖表會自動載入，不需要額外初始化
-            console.log('✅ 股票分析顯示完成，K線圖使用 Yahoo Finance');
+            // 初始化 TradingView 圖表
+            console.log('✅ 股票分析顯示完成，開始初始化 K 線圖...');
+
+            if (typeof TradingView !== 'undefined') {
+                stocks.forEach((stock, index) => {
+                    setTimeout(() => {
+                        try {
+                            const containerId = `tradingview_chart_${stock.symbol}_${index}`;
+                            const container = document.getElementById(containerId);
+
+                            if (!container) {
+                                console.error(`找不到容器: ${containerId}`);
+                                return;
+                            }
+
+                            // 台股代碼格式：股票代號.TW
+                            const symbol = `${stock.symbol}.TW`;
+                            console.log(`初始化圖表: ${stock.name} (${symbol})`);
+
+                            new TradingView.widget({
+                                "autosize": true,
+                                "symbol": symbol,
+                                "interval": "D",
+                                "timezone": "Asia/Taipei",
+                                "theme": "dark",
+                                "style": "1",
+                                "locale": "zh_TW",
+                                "toolbar_bg": "#1e1e1e",
+                                "enable_publishing": false,
+                                "hide_top_toolbar": false,
+                                "hide_legend": false,
+                                "save_image": false,
+                                "container_id": containerId,
+                                "studies": [
+                                    "Volume@tv-basicstudies"
+                                ]
+                            });
+
+                            console.log(`✅ ${stock.name} (${symbol}) 圖表初始化成功`);
+                        } catch (error) {
+                            console.error(`初始化 ${stock.symbol} 圖表失敗:`, error);
+                        }
+                    }, index * 500); // 延遲初始化，避免同時載入太多圖表
+                });
+            } else {
+                console.error('❌ TradingView 腳本未載入');
+            }
         }
 
         console.log('✅ 系統初始化完成');
