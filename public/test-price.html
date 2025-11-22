@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股價測試頁面</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">股價獲取測試</h1>
+        
+        <div class="mb-4">
+            <button onclick="testStockPrice()" class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold">
+                測試台積電股價
+            </button>
+        </div>
+        
+        <div id="result" class="bg-gray-800 rounded-lg p-4 mt-4"></div>
+    </div>
+
+    <script>
+        async function getRealStockPrice(symbol) {
+            const result = document.getElementById('result');
+            result.innerHTML = '<p class="text-yellow-400">正在獲取股價...</p>';
+            
+            try {
+                const today = new Date();
+                const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}01`;
+                const url = `https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date=${dateStr}&stockNo=${symbol}&response=json`;
+                
+                result.innerHTML += `<p class="text-gray-400">URL: ${url}</p>`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                result.innerHTML += `<p class="text-gray-400">API 狀態: ${data.stat}</p>`;
+                result.innerHTML += `<pre class="text-xs mt-2 bg-gray-900 p-2 rounded overflow-auto">${JSON.stringify(data, null, 2)}</pre>`;
+                
+                if (data.stat === 'OK' && data.data && data.data.length > 0) {
+                    const latestData = data.data[data.data.length - 1];
+                    const price = parseFloat(latestData[6]);
+                    const volume = parseInt(latestData[1].replace(/,/g, ''));
+                    
+                    result.innerHTML += `<p class="text-green-400 mt-4 text-xl">解析結果: 價格=${price}, 成交量=${volume}</p>`;
+                    
+                    // 估計值
+                    const estimatedPrice = 1450;
+                    const diff = Math.abs(price - estimatedPrice) / estimatedPrice;
+                    
+                    result.innerHTML += `<p class="text-yellow-400 mt-2">估計值: ${estimatedPrice}</p>`;
+                    result.innerHTML += `<p class="text-yellow-400">差異: ${(diff * 100).toFixed(1)}%</p>`;
+                    
+                    if (diff > 0.9) {
+                        result.innerHTML += `<p class="text-red-400 mt-2">⚠️ 價格異常！使用估計值 ${estimatedPrice}</p>`;
+                        return {
+                            price: estimatedPrice,
+                            volume: volume,
+                            source: '估計值（API 數據異常）'
+                        };
+                    } else {
+                        result.innerHTML += `<p class="text-green-400 mt-2">✅ 價格正常，使用 API 數據</p>`;
+                        return {
+                            price: price,
+                            volume: volume,
+                            source: '台灣證交所'
+                        };
+                    }
+                } else {
+                    result.innerHTML += `<p class="text-red-400 mt-4">❌ API 返回數據異常</p>`;
+                }
+            } catch (error) {
+                result.innerHTML += `<p class="text-red-400 mt-4">❌ 錯誤: ${error.message}</p>`;
+                result.innerHTML += `<pre class="text-xs mt-2 bg-gray-900 p-2 rounded">${error.stack}</pre>`;
+            }
+            
+            // 使用估計值
+            result.innerHTML += `<p class="text-blue-400 mt-4">使用估計值: 1450</p>`;
+            return {
+                price: 1450,
+                volume: 10000000,
+                source: '估計值'
+            };
+        }
+        
+        async function testStockPrice() {
+            const data = await getRealStockPrice('2330');
+            console.log('最終結果:', data);
+        }
+    </script>
+</body>
+</html>
+
