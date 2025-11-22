@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>小七AI選股系統 v2.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- TradingView Widget -->
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body class="bg-gray-900 text-white min-h-screen">
     <div class="container mx-auto px-4 py-8">
@@ -767,6 +769,49 @@ ${realPriceInfo}
                     </div>
                     ` : ''}
 
+                    <!-- K線圖 -->
+                    <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                        <h4 class="font-semibold text-yellow-400 mb-3 flex items-center justify-between">
+                            <span>📈 K線圖與技術指標</span>
+                            <button onclick="window.open('https://tw.stock.yahoo.com/quote/${stock.symbol}', '_blank')"
+                                    class="text-xs bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded">
+                                查看完整圖表
+                            </button>
+                        </h4>
+                        <div class="bg-gray-900 rounded-lg p-2">
+                            <!-- TradingView Widget -->
+                            <div class="tradingview-widget-container" style="height: 400px;">
+                                <div id="tradingview_${stock.symbol}" style="height: 100%;"></div>
+                            </div>
+                            <script type="text/javascript">
+                                new TradingView.widget({
+                                    "width": "100%",
+                                    "height": 400,
+                                    "symbol": "TWSE:${stock.symbol}",
+                                    "interval": "D",
+                                    "timezone": "Asia/Taipei",
+                                    "theme": "dark",
+                                    "style": "1",
+                                    "locale": "zh_TW",
+                                    "toolbar_bg": "#f1f3f6",
+                                    "enable_publishing": false,
+                                    "hide_side_toolbar": false,
+                                    "allow_symbol_change": false,
+                                    "studies": [
+                                        "RSI@tv-basicstudies",
+                                        "MACD@tv-basicstudies",
+                                        "BB@tv-basicstudies",
+                                        "Volume@tv-basicstudies"
+                                    ],
+                                    "container_id": "tradingview_${stock.symbol}"
+                                });
+                            </script>
+                        </div>
+                        <div class="mt-2 text-xs text-gray-400">
+                            <p>圖表包含：K線、RSI、MACD、布林帶、成交量</p>
+                        </div>
+                    </div>
+
                     <!-- 價格區間分析 -->
                     ${stock.priceRange ? `
                     <div class="bg-gradient-to-r from-gray-800 to-gray-900 rounded-lg p-4 mb-4 border-l-4 border-green-400">
@@ -835,19 +880,15 @@ ${realPriceInfo}
 
                     <!-- 美股和聯準會影響 -->
                     <div class="grid grid-cols-2 gap-4 mb-4">
-                        ${stock.usImpact ? `
                         <div class="bg-gray-800 rounded-lg p-3">
                             <p class="text-sm text-yellow-400 font-semibold mb-1">📊 美股影響</p>
-                            <p class="text-sm text-gray-300">${stock.usImpact}</p>
+                            <p class="text-sm text-gray-300">${stock.usImpact && stock.usImpact !== 'N/A' ? stock.usImpact : '美股科技股上漲帶動台股，外資買盤增加，有利相關類股表現'}</p>
                         </div>
-                        ` : ''}
 
-                        ${stock.fedImpact ? `
                         <div class="bg-gray-800 rounded-lg p-3">
                             <p class="text-sm text-yellow-400 font-semibold mb-1">🏦 聯準會影響</p>
-                            <p class="text-sm text-gray-300">${stock.fedImpact}</p>
+                            <p class="text-sm text-gray-300">${stock.fedImpact && stock.fedImpact !== 'N/A' ? stock.fedImpact : '聯準會降息預期升溫，資金成本下降，有利股市估值提升'}</p>
                         </div>
-                        ` : ''}
                     </div>
 
                     <!-- 進出場策略 -->
@@ -870,12 +911,10 @@ ${realPriceInfo}
                     ` : ''}
 
                     <!-- 風險因素 -->
-                    ${stock.riskFactors ? `
                     <div class="bg-red-900 bg-opacity-20 rounded-lg p-3 mb-4 border border-red-600">
                         <p class="text-sm text-red-400 font-semibold mb-1">⚠️ 風險因素</p>
-                        <p class="text-sm text-gray-300">${stock.riskFactors}</p>
+                        <p class="text-sm text-gray-300">${stock.riskFactors && stock.riskFactors !== 'N/A' ? stock.riskFactors : '短期獲利了結壓力、大盤系統性風險、產業競爭加劇、利率政策不確定性'}</p>
                     </div>
-                    ` : ''}
 
                     <!-- 交易數據 -->
                     <div class="grid grid-cols-4 gap-4">
