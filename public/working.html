@@ -831,10 +831,57 @@ ${realPriceInfo}
 
                             if (!fixed) {
                                 console.error('❌ 所有自動修復方案都失敗');
-                                console.error('請將以下信息提供給開發者：');
-                                console.error('錯誤位置:', pos);
-                                console.error('錯誤上下文:', context);
-                                throw new Error(`JSON 格式錯誤：${parseError.message}。請重新分析。`);
+                                console.log('🔧 嘗試終極修復方案：逐步解析...');
+
+                                // 終極修復方案：嘗試找出所有錯誤位置並修復
+                                let workingJson = jsonStr;
+                                let attempts = 0;
+                                const maxAttempts = 20; // 最多嘗試 20 次
+
+                                while (attempts < maxAttempts) {
+                                    try {
+                                        stockData = JSON.parse(workingJson);
+                                        console.log(`✅ 終極修復成功（經過 ${attempts + 1} 次修復）`);
+                                        fixed = true;
+                                        break;
+                                    } catch (err) {
+                                        attempts++;
+                                        const errMatch = err.message.match(/position (\d+)/);
+                                        if (!errMatch) break;
+
+                                        const errPos = parseInt(errMatch[1]);
+                                        console.log(`🔧 第 ${attempts} 次修復，位置 ${errPos}`);
+
+                                        // 嘗試最可能的修復：插入逗號
+                                        if (errPos > 0 && errPos < workingJson.length) {
+                                            const char = workingJson[errPos];
+                                            const prevChar = workingJson[errPos - 1];
+
+                                            // 根據上下文決定修復方式
+                                            if (char === '"' && (prevChar === '"' || prevChar === '}' || prevChar === ']')) {
+                                                // 缺少逗號
+                                                workingJson = workingJson.substring(0, errPos) + ',' + workingJson.substring(errPos);
+                                            } else if (char === '{' && prevChar === '}') {
+                                                // 缺少逗號
+                                                workingJson = workingJson.substring(0, errPos) + ',' + workingJson.substring(errPos);
+                                            } else {
+                                                // 移除錯誤字符
+                                                workingJson = workingJson.substring(0, errPos) + workingJson.substring(errPos + 1);
+                                            }
+                                        } else {
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if (!fixed) {
+                                    console.error('❌ 終極修復方案也失敗');
+                                    console.error('請將以下信息提供給開發者：');
+                                    console.error('錯誤位置:', pos);
+                                    console.error('錯誤上下文:', context);
+                                    console.error('完整 JSON（前 1000 字符）:', jsonStr.substring(0, 1000));
+                                    throw new Error(`JSON 格式錯誤：${parseError.message}。請重新分析。`);
+                                }
                             }
                         } else {
                             throw new Error(`JSON 格式錯誤：${parseError.message}。請重新分析。`);
