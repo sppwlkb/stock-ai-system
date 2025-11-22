@@ -874,10 +874,28 @@ ${realPriceInfo}
                 result.innerHTML = '<p class="text-blue-400">⏳ 步驟3/3：解析和驗證數據...</p>';
 
                 const data = await response.json();
+
+                // 檢查 API 回應狀態
+                console.log('API 回應狀態:', data);
+                if (data.candidates && data.candidates[0]) {
+                    console.log('候選回應數量:', data.candidates.length);
+                    console.log('完成原因:', data.candidates[0].finishReason);
+                }
+
                 const text = data.candidates[0].content.parts[0].text;
 
                 console.log('AI 原始回應:', text);
                 console.log('回應長度:', text.length, '字符');
+
+                // 檢查是否因為 token 限制而被截斷
+                if (data.candidates[0].finishReason === 'MAX_TOKENS') {
+                    console.warn('⚠️ 警告：AI 回應因達到 token 上限而被截斷！');
+                    console.warn('建議：減少推薦股票數量，或使用分批請求');
+                } else if (data.candidates[0].finishReason === 'STOP') {
+                    console.log('✅ AI 正常完成回應');
+                } else {
+                    console.warn('⚠️ 未知的完成原因:', data.candidates[0].finishReason);
+                }
 
                 // 解析 JSON - 超強健的處理
                 let jsonMatch = text.match(/\{[\s\S]*\}/);
