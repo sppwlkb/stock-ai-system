@@ -589,55 +589,105 @@ ${realPriceInfo}
                 console.log('AI 原始回應:', text);
                 console.log('回應長度:', text.length, '字符');
 
-                // 解析 JSON - 更強健的處理
+                // 解析 JSON - 超強健的處理
                 let jsonMatch = text.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     let jsonStr = jsonMatch[0];
 
-                    // 清理可能的問題
-                    // 1. 移除所有註解（單行和多行）
+                    console.log('原始 JSON 長度:', jsonStr.length);
+
+                    // 清理步驟
+                    // 1. 移除所有註解
                     jsonStr = jsonStr.replace(/\/\/.*$/gm, '');
                     jsonStr = jsonStr.replace(/\/\*[\s\S]*?\*\//g, '');
 
-                    // 2. 移除多餘的逗號（在 } 或 ] 前面）
+                    // 2. 移除多餘的逗號
                     jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1');
 
-                    // 3. 處理字串中的特殊字符
-                    // 先保護已經正確的雙引號字串
+                    // 3. 保護字串內容
                     const strings = [];
                     jsonStr = jsonStr.replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, (match) => {
-                        strings.push(match);
+                        // 清理字串內容
+                        let cleaned = match;
+                        // 移除字串中的控制字符
+                        cleaned = cleaned.replace(/[\x00-\x1F\x7F]/g, '');
+                        // 移除字串中的反斜線（除了 \" 和 \\）
+                        cleaned = cleaned.replace(/\\(?!["\\/bfnrt])/g, '');
+                        strings.push(cleaned);
                         return `__STRING_${strings.length - 1}__`;
                     });
 
-                    // 4. 移除剩餘的單引號
+                    // 4. 移除剩餘的單引號和特殊字符
                     jsonStr = jsonStr.replace(/'/g, '');
+                    jsonStr = jsonStr.replace(/[\x00-\x1F\x7F]/g, '');
 
-                    // 5. 還原字串
+                    // 5. 修正常見的 JSON 錯誤
+                    // 移除屬性名稱後多餘的冒號
+                    jsonStr = jsonStr.replace(/:+/g, ':');
+                    // 移除多餘的逗號
+                    jsonStr = jsonStr.replace(/,+/g, ',');
+                    // 修正缺少逗號的情況（"value" "key" -> "value", "key"）
+                    jsonStr = jsonStr.replace(/__STRING_(\d+)__\s+__STRING_(\d+)__/g, '__STRING_$1__, __STRING_$2__');
+                    jsonStr = jsonStr.replace(/__STRING_(\d+)__\s+"([^"]+)":/g, '__STRING_$1__, "$2":');
+
+                    // 6. 還原字串
                     strings.forEach((str, i) => {
                         jsonStr = jsonStr.replace(`__STRING_${i}__`, str);
                     });
 
-                    // 6. 移除控制字符
-                    jsonStr = jsonStr.replace(/[\x00-\x1F\x7F]/g, '');
-
-                    console.log('清理後的 JSON:', jsonStr);
+                    console.log('清理後的 JSON 長度:', jsonStr.length);
+                    console.log('清理後的 JSON 前 500 字符:', jsonStr.substring(0, 500));
 
                     let stockData;
                     try {
                         stockData = JSON.parse(jsonStr);
                     } catch (parseError) {
-                        console.error('JSON 解析錯誤:', parseError);
-                        console.error('錯誤位置:', parseError.message);
+                        console.error('❌ JSON 解析錯誤:', parseError);
+                        console.error('錯誤訊息:', parseError.message);
 
-                        // 嘗試找出錯誤位置
+                        // 找出錯誤位置
                         const errorMatch = parseError.message.match(/position (\d+)/);
                         if (errorMatch) {
                             const pos = parseInt(errorMatch[1]);
-                            console.error('錯誤附近的內容:', jsonStr.substring(Math.max(0, pos - 50), pos + 50));
-                        }
+                            const start = Math.max(0, pos - 100);
+                            const end = Math.min(jsonStr.length, pos + 100);
+                            const context = jsonStr.substring(start, end);
+                            const errorChar = jsonStr[pos];
 
-                        throw new Error(`JSON 格式錯誤：${parseError.message}。請重新分析。`);
+                            console.error('錯誤位置:', pos);
+                            console.error('錯誤字符:', errorChar, '(ASCII:', errorChar ? errorChar.charCodeAt(0) : 'N/A', ')');
+                            console.error('錯誤上下文:', context);
+                            console.error('錯誤位置標記:', ' '.repeat(pos - start) + '^');
+
+                            // 嘗試自動修復
+                            console.log('🔧 嘗試自動修復...');
+
+                            // 修復方案1：移除錯誤位置的字符
+                            let fixedJson1 = jsonStr.substring(0, pos) + jsonStr.substring(pos + 1);
+                            try {
+                                stockData = JSON.parse(fixedJson1);
+                                console.log('✅ 修復成功（移除錯誤字符）');
+                            } catch (e) {
+                                // 修復方案2：替換為逗號
+                                let fixedJson2 = jsonStr.substring(0, pos) + ',' + jsonStr.substring(pos + 1);
+                                try {
+                                    stockData = JSON.parse(fixedJson2);
+                                    console.log('✅ 修復成功（替換為逗號）');
+                                } catch (e2) {
+                                    // 修復方案3：替換為空格
+                                    let fixedJson3 = jsonStr.substring(0, pos) + ' ' + jsonStr.substring(pos + 1);
+                                    try {
+                                        stockData = JSON.parse(fixedJson3);
+                                        console.log('✅ 修復成功（替換為空格）');
+                                    } catch (e3) {
+                                        console.error('❌ 自動修復失敗');
+                                        throw new Error(`JSON 格式錯誤：${parseError.message}。請重新分析。`);
+                                    }
+                                }
+                            }
+                        } else {
+                            throw new Error(`JSON 格式錯誤：${parseError.message}。請重新分析。`);
+                        }
                     }
 
                     // 顯示市場分析（包含分析時間和交易提醒）
