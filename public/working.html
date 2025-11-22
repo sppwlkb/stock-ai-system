@@ -1097,7 +1097,9 @@ ${realPriceInfo}
                                             console.log(`當前字符: "${char}" (${char ? char.charCodeAt(0) : 'undefined'})`);
                                             console.log(`前一字符: "${prevChar}" (${prevChar ? prevChar.charCodeAt(0) : 'N/A'})`);
 
-                                            // 檢測 JSON 是否不完整
+                                            // 🚨 優先檢測 JSON 是否不完整（必須在所有修復策略之前）
+                                            console.log(`檢查 JSON 是否不完整: char === undefined? ${char === undefined}, errPos === length? ${errPos === workingJson.length}`);
+
                                             if (char === undefined && errPos === workingJson.length) {
                                                 console.error('❌ 檢測到 JSON 不完整（突然截斷）');
                                                 console.error(`JSON 在位置 ${errPos} 處結束，但結構不完整`);
