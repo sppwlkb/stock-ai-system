@@ -140,8 +140,15 @@
                     // 基於真實股價計算價格區間
                     const priceRange = calculatePriceRange(realPrice);
 
-                    correctedStocks.push({
-                        ...stock,
+                    console.log(`${stock.name} (${stock.symbol}) 價格區間計算:`, {
+                        realPrice: realPrice,
+                        priceRange: priceRange
+                    });
+
+                    // 創建修正後的股票數據，確保價格區間使用計算值
+                    const correctedStock = {
+                        symbol: stock.symbol,
+                        name: stock.name,
                         currentPrice: realPrice.toFixed(2),
                         entryPrice: realPrice.toFixed(2),
                         targetPrice: targetPrice,
@@ -151,12 +158,26 @@
                         expectedProfit: expectedProfit,
                         profitPercent: profitPercentDisplay,
                         riskRewardRatio: riskRewardRatio,
-                        priceRange: priceRange,  // 使用計算後的價格區間
+                        priceRange: priceRange,  // 強制使用計算後的價格區間
                         investment: '10000',
                         dataSource: '台灣證交所即時數據',
                         calculationMethod: `動態獲利目標（${profitPercentDisplay}）基於股價 $${realPrice} 和波動性`,
-                        priceRangeNote: `價格區間基於真實股價 $${realPrice.toFixed(2)} 計算`
-                    });
+                        priceRangeNote: `價格區間基於真實股價 $${realPrice.toFixed(2)} 計算`,
+                        // 保留其他 AI 分析數據
+                        fundamentals: stock.fundamentals,
+                        technicalAnalysis: stock.technicalAnalysis,
+                        chipAnalysis: stock.chipAnalysis,
+                        newsAnalysis: stock.newsAnalysis,
+                        candlestickPattern: stock.candlestickPattern,
+                        reason: stock.reason,
+                        usImpact: stock.usImpact,
+                        fedImpact: stock.fedImpact,
+                        entryStrategy: stock.entryStrategy,
+                        exitStrategy: stock.exitStrategy,
+                        riskFactors: stock.riskFactors
+                    };
+
+                    correctedStocks.push(correctedStock);
                 } else {
                     // 如果無法獲取真實數據，標記為無效
                     console.warn(`無法獲取 ${stock.symbol} 的真實數據`);
