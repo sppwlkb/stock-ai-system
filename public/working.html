@@ -212,24 +212,88 @@
             };
         }
 
+        // 智能判斷股票波動性
+        function detectVolatility(symbol, price, technicalAnalysis) {
+            // 根據股票代號和技術分析判斷波動性
+
+            // 高波動股票清單
+            const highVolatilityStocks = [
+                '2409', '2412', // 面板股（友達、群創）
+                '2603', '2609', '2615', // 航運股（長榮、陽明、萬海）
+                '3008', // 大立光
+                '2454', // 聯發科
+                '2303', // 聯電
+            ];
+
+            // 低波動股票清單
+            const lowVolatilityStocks = [
+                '2330', // 台積電（雖然價格高，但相對穩定）
+                '2881', '2882', '2883', '2884', '2885', '2886', '2887', '2891', '2892', // 金融股
+                '1301', '1303', '1326', // 台塑四寶
+            ];
+
+            // 檢查是否在特定清單中
+            if (highVolatilityStocks.includes(symbol)) {
+                return 'high';
+            }
+            if (lowVolatilityStocks.includes(symbol)) {
+                return 'low';
+            }
+
+            // 根據技術分析判斷
+            if (technicalAnalysis) {
+                const text = technicalAnalysis.toLowerCase();
+                // 檢查是否提到高波動
+                if (text.includes('波動大') || text.includes('震盪劇烈') || text.includes('高波動')) {
+                    return 'high';
+                }
+                // 檢查是否提到低波動
+                if (text.includes('波動小') || text.includes('穩定') || text.includes('低波動')) {
+                    return 'low';
+                }
+            }
+
+            // 根據股價判斷（低價股通常波動較大）
+            if (price < 20) {
+                return 'high';
+            }
+
+            // 預設為中等波動
+            return 'medium';
+        }
+
         // 計算動態獲利目標（根據股價和波動性）
         function calculateProfitTarget(price, volatility = 'medium') {
-            // 根據股價區間設定不同的獲利目標
+            // 交易成本：手續費 0.1425% × 2 + 證交稅 0.15% = 0.435%
+            const tradingCost = 0.00435;
+            const minProfit = 0.08; // 最低獲利目標 8%（覆蓋成本後仍有利潤）
+
             let profitPercent;
 
+            // 根據股價區間設定基礎獲利目標
             if (price < 10) {
-                // 低價股：波動大，設定較高目標
-                profitPercent = volatility === 'high' ? 0.15 : 0.12; // 12-15%
+                // 低價股：波動大，設定較高目標（10-15%）
+                profitPercent = volatility === 'high' ? 0.15 : (volatility === 'low' ? 0.10 : 0.12);
             } else if (price < 20) {
-                // 中低價股
-                profitPercent = volatility === 'high' ? 0.12 : 0.10; // 10-12%
-            } else if (price < 30) {
-                // 中價股
-                profitPercent = volatility === 'high' ? 0.10 : 0.08; // 8-10%
+                // 中低價股（10-12%）
+                profitPercent = volatility === 'high' ? 0.12 : (volatility === 'low' ? 0.10 : 0.11);
+            } else if (price < 50) {
+                // 中價股（8-12%）
+                profitPercent = volatility === 'high' ? 0.12 : (volatility === 'low' ? 0.08 : 0.10);
+            } else if (price < 100) {
+                // 中高價股（8-10%）
+                profitPercent = volatility === 'high' ? 0.10 : (volatility === 'low' ? 0.08 : 0.09);
+            } else if (price < 500) {
+                // 高價股（8-10%）
+                profitPercent = volatility === 'high' ? 0.10 : (volatility === 'low' ? 0.08 : 0.09);
             } else {
-                // 高價股：波動小，設定較低目標
-                profitPercent = volatility === 'high' ? 0.08 : 0.06; // 6-8%
+                // 超高價股（台積電、大立光等）（8-12%）
+                // 雖然價格高，但這些股票波動也可能很大
+                profitPercent = volatility === 'high' ? 0.12 : (volatility === 'low' ? 0.08 : 0.10);
             }
+
+            // 確保獲利目標至少能覆蓋交易成本
+            profitPercent = Math.max(profitPercent, minProfit);
 
             return profitPercent;
         }
@@ -279,8 +343,9 @@
         }
 
         // 基於真實股價重新生成策略
-        function regenerateStrategies(realPrice) {
-            const profitPercent = calculateProfitTarget(realPrice, 'medium');
+        function regenerateStrategies(realPrice, symbol = '', technicalAnalysis = '') {
+            const volatility = symbol ? detectVolatility(symbol, realPrice, technicalAnalysis) : 'medium';
+            const profitPercent = calculateProfitTarget(realPrice, volatility);
 
             // 計算目標價
             const target1 = (realPrice * (1 + profitPercent * 0.6)).toFixed(2);
@@ -315,11 +380,13 @@
                     console.log(`真實股價: ${realPrice}元`);
                     console.log(`真實成交量: ${realData.volume}股`);
 
-                    // 判斷波動性（可以從技術指標或 AI 分析中獲取）
-                    const volatility = stock.technicalAnalysis?.volatility || 'medium';
+                    // 智能判斷波動性
+                    const volatility = detectVolatility(stock.symbol, realPrice, stock.technicalAnalysis);
+                    console.log(`波動性判斷: ${volatility}`);
 
                     // 動態計算獲利目標
                     const profitPercent = calculateProfitTarget(realPrice, volatility);
+                    console.log(`獲利目標: ${(profitPercent * 100).toFixed(1)}%`);
 
                     // 計算交易數據
                     const shares = Math.floor(10000 / realPrice);
@@ -334,8 +401,8 @@
                     // 基於真實股價計算價格區間
                     const priceRange = calculatePriceRange(realPrice);
 
-                    // 重新生成進出場策略（基於真實股價）
-                    const strategies = regenerateStrategies(realPrice);
+                    // 重新生成進出場策略（基於真實股價和波動性）
+                    const strategies = regenerateStrategies(realPrice, stock.symbol, stock.technicalAnalysis);
 
                     console.log(`價格區間:`, priceRange);
                     console.log(`重新生成的策略:`, strategies);
