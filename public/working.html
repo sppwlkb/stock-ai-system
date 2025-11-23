@@ -129,7 +129,7 @@
                             id="stockCount"
                             value="3"
                             min="1"
-                            max="10"
+                            max="3"
                             step="1"
                             class="w-full bg-gray-800 text-white border border-gray-700 rounded px-3 py-2 mb-2 focus:border-yellow-400 focus:outline-none"
                         />
@@ -137,7 +137,7 @@
                             type="range"
                             id="countSlider"
                             min="1"
-                            max="10"
+                            max="3"
                             step="1"
                             value="3"
                             class="w-full"
@@ -145,7 +145,7 @@
                         <div class="flex justify-between text-xs text-gray-400 mt-1">
                             <span>1支</span>
                             <span id="countDisplay" class="text-yellow-400 font-semibold">3支</span>
-                            <span>10支</span>
+                            <span>3支</span>
                         </div>
                     </div>
                 </div>
@@ -184,9 +184,8 @@
 
     <script>
         const API_KEY = 'AIzaSyCodEpEezZ804-7TlwSJj5o19QBX1fpGSM';
-        // 使用 Gemini 2.0 Flash Experimental（更穩定，輸出限制更高）
-        // Gemini 3 Pro Preview 可能還不穩定，容易截斷
-        const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
+        // 使用 Gemini 3 Pro Preview（最新最強大的模型）
+        const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent';
 
         // 獲取真實台股股價（使用多個來源）
         async function getRealStockPrice(symbol) {
