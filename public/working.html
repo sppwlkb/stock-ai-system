@@ -838,7 +838,15 @@ ${realPriceInfo}
 
 4. newsAnalysis 必須包含：最新消息具體內容如11月獲利優於預期月增百分之8董事會通過股息2.0元
 
-5. reason 必須包含：基本面EPS2.85元年增百分之15ROE百分之12.5本益比12.5倍股息殖利率百分之5.6。技術面RSI14為65MACD DIF0.45DEA0.32KD72斜線68黃金交叉布林帶中軌34.5上軌37.8成交量4932萬股增百分之41。籌碼面外資5日買超35000張主力集中度百分之68融資減百分之7.4。消息面11月獲利優於預期月增百分之8董事會通過股息2.0元。國際因素美股那斯達克漲百分之1.5聯準會降息預期。價格動能突破35.0支撐32.1壓力39.2。風險評估利率風險市場風險產業風險系統風險競爭風險。進場策略當前35.65激進型當前價進場穩健型回檔34.5進場保守型回檔32.5進場。出場策略第一目標37.5出場百分之30第二目標38.5出場百分之40第三目標39.2出場百分之30停損34.9
+5. expectedBreakoutTime 必須包含：預估漲勢發動時間如1到3個交易日內可能突破壓力或3到5個交易日內可能發動漲勢
+
+6. holdingPeriod 必須包含：建議持股時間如最多持有5個交易日或建議持有3到7個交易日
+
+7. exitCondition 必須包含：出場條件如如果3日內未突破65元或成交量未放大建議出場或如果5日內未站穩60元建議停損
+
+8. switchStockTiming 必須包含：換股時機如超過5個交易日仍在60到62元區間盤整立即換股或如果7日內未創新高建議換股操作
+
+9. reason 必須包含：基本面EPS2.85元年增百分之15ROE百分之12.5本益比12.5倍股息殖利率百分之5.6。技術面RSI14為65MACD DIF0.45DEA0.32KD72斜線68黃金交叉布林帶中軌34.5上軌37.8成交量4932萬股增百分之41。籌碼面外資5日買超35000張主力集中度百分之68融資減百分之7.4。消息面11月獲利優於預期月增百分之8董事會通過股息2.0元。國際因素美股那斯達克漲百分之1.5聯準會降息預期。價格動能突破35.0支撐32.1壓力39.2。風險評估利率風險市場風險產業風險系統風險競爭風險。進場策略當前35.65激進型當前價進場穩健型回檔34.5進場保守型回檔32.5進場。出場策略第一目標37.5出場百分之30第二目標38.5出場百分之40第三目標39.2出場百分之30停損34.9
 
 6. entryStrategy 必須基於當前真實股價，例如：當前價格35.65元激進型當前價進場首批百分之50突破36.5加碼百分之30，穩健型回檔34.5進場，保守型回檔32.5進場
 
@@ -945,6 +953,10 @@ ${realPriceInfo}
       "chipAnalysis": "外資連5日買超自營商買超投信持平散戶減主力集中度68成融資減",
       "newsAnalysis": "獲美國大廠新訂單Q4營收增30成",
       "candlestickPattern": "看漲吞噬",
+      "expectedBreakoutTime": "1到3個交易日內可能突破壓力",
+      "holdingPeriod": "最多持有5個交易日",
+      "exitCondition": "如果3日內未突破48元或成交量未放大建議出場",
+      "switchStockTiming": "超過5個交易日仍在45到47元區間盤整立即換股",
       "reason": "基本面營收年增25成毛利率35成產業龍頭。技術面RSI為65MACD金叉布林帶突破成交量放大2倍。籌碼面外資連5日買超主力集中度68成散戶減融資減。消息面獲美國大廠新訂單Q4營收增30成產業旺季。國際因素美股漲1.5成帶動科技股聯準會降息預期利多。價格動能突破月線壓力支撐10.2目標12.0量價配合。風險評估短期獲利了結壓力建議2成止損風險報酬比1比5。進場策略分批進場首批5成突破加碼3成保留2成。出場策略目標價分批出場或RSI大於80或MACD死叉立即出場",
       "usImpact": "美股科技股上漲帶動台股外資買盤增加",
       "fedImpact": "聯準會降息預期資金成本下降利多成長股",
@@ -1615,6 +1627,46 @@ ${realPriceInfo}
                     <div class="bg-gray-800 rounded-lg p-4 mb-4">
                         <h4 class="font-semibold text-orange-400 mb-2">📰 消息面分析</h4>
                         <p class="text-gray-300">${stock.newsAnalysis}</p>
+                    </div>
+                    ` : ''}
+
+                    <!-- 持股時間建議（新增） -->
+                    ${stock.expectedBreakoutTime || stock.holdingPeriod || stock.exitCondition || stock.switchStockTiming ? `
+                    <div class="bg-gradient-to-r from-red-900 to-orange-900 rounded-lg p-4 mb-4 border-l-4 border-yellow-400">
+                        <h4 class="font-semibold text-yellow-300 mb-3 flex items-center">
+                            ⏰ 持股時間建議（重要！）
+                        </h4>
+                        <div class="space-y-3">
+                            ${stock.expectedBreakoutTime ? `
+                            <div class="bg-black bg-opacity-30 rounded-lg p-3">
+                                <p class="text-xs text-yellow-400 font-semibold mb-1">🚀 預估漲勢發動時間</p>
+                                <p class="text-sm text-white font-semibold">${stock.expectedBreakoutTime}</p>
+                            </div>
+                            ` : ''}
+                            ${stock.holdingPeriod ? `
+                            <div class="bg-black bg-opacity-30 rounded-lg p-3">
+                                <p class="text-xs text-green-400 font-semibold mb-1">📅 建議持股時間</p>
+                                <p class="text-sm text-white">${stock.holdingPeriod}</p>
+                            </div>
+                            ` : ''}
+                            ${stock.exitCondition ? `
+                            <div class="bg-black bg-opacity-30 rounded-lg p-3">
+                                <p class="text-xs text-red-400 font-semibold mb-1">⚠️ 停損出場條件</p>
+                                <p class="text-sm text-red-300">${stock.exitCondition}</p>
+                            </div>
+                            ` : ''}
+                            ${stock.switchStockTiming ? `
+                            <div class="bg-black bg-opacity-30 rounded-lg p-3">
+                                <p class="text-xs text-orange-400 font-semibold mb-1">🔄 換股時機</p>
+                                <p class="text-sm text-orange-300">${stock.switchStockTiming}</p>
+                            </div>
+                            ` : ''}
+                        </div>
+                        <div class="mt-3 bg-yellow-500 bg-opacity-20 rounded-lg p-2">
+                            <p class="text-xs text-yellow-200">
+                                💡 <strong>提醒：</strong>小資金需要快速輪動才能創造最大獲利！如果股票在預估時間內沒有發動漲勢，請果斷換股，不要讓資金卡在沒有動能的股票上。
+                            </p>
+                        </div>
                     </div>
                     ` : ''}
 
