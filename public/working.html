@@ -893,7 +893,7 @@ ${realPriceInfo}
                         'X-Title': '小七AI選股系統'
                     },
                     body: JSON.stringify({
-                        model: 'google/gemini-2.0-flash-exp:free',  // 使用免費的 Gemini 2.0 Flash
+                        model: 'meta-llama/llama-3.2-3b-instruct:free',  // 使用完全免費的 Llama 3.2 3B（不會扣款）
                         messages: [{
                             role: 'user',
                             content: prompt
