@@ -183,10 +183,9 @@
     </div>
 
     <script>
-        const API_KEY = 'AIzaSyCodEpEezZ804-7TlwSJj5o19QBX1fpGSM';
-        // 使用 Gemini 2.0 Flash Experimental（穩定且已驗證可用）
-        // Gemini 3 Pro Preview 返回 403 錯誤，可能需要特殊權限
-        const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
+        // 使用 OpenRouter API（免費模型，不會扣款）
+        const API_KEY = 'sk-or-v1-c68b50f9b4ac3b0a8e5f2d1c9e7a3b6f8d4e2a1c5b7d9f3e6a8c2b4d1f7e9a3c5';
+        const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
         // 獲取真實台股股價（使用多個來源）
         async function getRealStockPrice(symbol) {
@@ -885,21 +884,22 @@ ${realPriceInfo}
 
 只回傳 JSON，不要其他文字。`;
 
-                const response = await fetch(`${API_URL}?key=${API_KEY}`, {
+                const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`,
+                        'HTTP-Referer': window.location.href,
+                        'X-Title': '小七AI選股系統'
                     },
                     body: JSON.stringify({
-                        contents: [{
-                            parts: [{
-                                text: prompt
-                            }]
+                        model: 'google/gemini-2.0-flash-exp:free',  // 使用免費的 Gemini 2.0 Flash
+                        messages: [{
+                            role: 'user',
+                            content: prompt
                         }],
-                        generationConfig: {
-                            temperature: 0.7,
-                            maxOutputTokens: 8000,  // 增加到 8000，確保 3 支股票的完整分析不會被截斷
-                        }
+                        temperature: 0.7,
+                        max_tokens: 8000
                     })
                 });
 
@@ -913,24 +913,21 @@ ${realPriceInfo}
 
                 // 檢查 API 回應狀態
                 console.log('API 回應狀態:', data);
-                if (data.candidates && data.candidates[0]) {
-                    console.log('候選回應數量:', data.candidates.length);
-                    console.log('完成原因:', data.candidates[0].finishReason);
-                }
 
-                const text = data.candidates[0].content.parts[0].text;
+                // OpenRouter 的回應格式
+                const text = data.choices[0].message.content;
 
                 console.log('AI 原始回應:', text);
                 console.log('回應長度:', text.length, '字符');
 
                 // 檢查是否因為 token 限制而被截斷
-                if (data.candidates[0].finishReason === 'MAX_TOKENS') {
+                if (data.choices[0].finish_reason === 'length') {
                     console.warn('⚠️ 警告：AI 回應因達到 token 上限而被截斷！');
-                    console.warn('建議：減少推薦股票數量，或使用分批請求');
-                } else if (data.candidates[0].finishReason === 'STOP') {
+                    console.warn('建議：減少推薦股票數量');
+                } else if (data.choices[0].finish_reason === 'stop') {
                     console.log('✅ AI 正常完成回應');
                 } else {
-                    console.warn('⚠️ 未知的完成原因:', data.candidates[0].finishReason);
+                    console.warn('⚠️ 完成原因:', data.choices[0].finish_reason);
                 }
 
                 // 解析 JSON - 超強健的處理
