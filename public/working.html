@@ -645,6 +645,32 @@
                 // 添加隨機性，確保每次推薦不同股票
                 const timestamp = new Date().toISOString();
                 const randomSeed = Math.random().toString(36).substring(7);
+                const analysisNumber = Math.floor(Math.random() * 1000) + 1;
+
+                // 隨機選擇分析風格，增加多樣性
+                const analysisStyles = [
+                    '激進型（追求高獲利）',
+                    '穩健型（平衡風險與報酬）',
+                    '保守型（重視安全性）',
+                    '成長型（關注成長潛力）',
+                    '價值型（尋找被低估的股票）',
+                    '動能型（追蹤強勢股）',
+                    '逆勢型（尋找反轉機會）'
+                ];
+                const randomStyle = analysisStyles[Math.floor(Math.random() * analysisStyles.length)];
+
+                // 隨機選擇產業偏好，增加多樣性
+                const industryPreferences = [
+                    '金融股',
+                    '科技股',
+                    '傳產股',
+                    '電子股',
+                    '塑化股',
+                    '鋼鐵股',
+                    '航運股',
+                    '不限產業'
+                ];
+                const randomIndustry = industryPreferences[Math.floor(Math.random() * industryPreferences.length)];
 
                 // 構建包含真實股價的 prompt
                 const realPriceInfo = Object.entries(realPriceData)
@@ -658,11 +684,20 @@
 
 **分析時間：${timestamp}**
 **分析編號：${randomSeed}**
+**分析次數：第 ${analysisNumber} 次**
+**本次分析風格：${randomStyle}**
+**產業偏好：${randomIndustry}**
 
 ⚠️ **重要：以下是當前真實股價數據，你必須基於這些真實價格進行分析：**
 ${realPriceInfo}
 
-⚠️ 重要：這是第 ${Math.floor(Math.random() * 100) + 1} 次分析，請推薦與之前不同的股票！
+🔄 **多樣性要求（極度重要）：**
+1. 這是第 ${analysisNumber} 次分析，請推薦與之前完全不同的股票組合！
+2. 本次採用「${randomStyle}」的分析風格
+3. ${randomIndustry === '不限產業' ? '可以從各產業中選擇' : '優先考慮' + randomIndustry + '，但不限於此產業'}
+4. 請避免總是推薦相同的熱門股票（例如：台積電、鴻海、聯發科等）
+5. 請從不同市值、不同產業的股票中選擇
+6. 每次分析都應該推薦不同的股票組合，展現你的專業多樣性！
 
 **你的專業背景：**
 - 精通各國股票行情，深入了解當下各國經濟局勢
