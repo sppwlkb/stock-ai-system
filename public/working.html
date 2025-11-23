@@ -741,17 +741,25 @@ ${realPriceInfo}
 **當前分析任務：**
 從全台股 1700+ 支股票中，找出「最有潛力、最可能大漲」的當沖標的！
 
-📋 **篩選條件：**
-1. **價格條件**：股價${userSettings.maxPrice > 0 ? `低於${userSettings.maxPrice}元` : '不限制'}
+📋 **篩選條件（必須嚴格遵守）：**
+1. **價格條件**：${userSettings.maxPrice > 0 ? `⚠️ **股價必須低於 ${userSettings.maxPrice} 元**（這是強制條件！不要推薦台積電1450元、聯發科1200元、廣達270元等高價股）` : '股價不限制'}
 2. **成交量條件**：當日成交量超過50萬股（確保流動性）
 3. **獲利目標**：根據股票波動性設定，最低${userSettings.minProfit}%，最高可達漲停（10%）
 4. **投資金額**：每次以${userSettings.investmentAmount.toLocaleString()}元入場
 
-⚠️ **用戶設定的篩選條件（必須嚴格遵守）：**
+⚠️ **用戶設定的篩選條件（必須嚴格遵守，違反將被拒絕）：**
 - 投資金額：${userSettings.investmentAmount.toLocaleString()}元
-- 股價上限：${userSettings.maxPrice > 0 ? userSettings.maxPrice + '元' : '不限制'}
+- ${userSettings.maxPrice > 0 ? `股價上限：${userSettings.maxPrice}元 ← **極度重要！不要推薦超過此價格的股票！**` : '股價上限：不限制'}
 - 最低獲利率：${userSettings.minProfit}%
 - 推薦股票數：${userSettings.stockCount}支
+
+${userSettings.maxPrice > 0 ? `
+🚨 **重要提醒：**
+- 用戶設定股價上限為 ${userSettings.maxPrice} 元
+- 請只推薦股價低於 ${userSettings.maxPrice} 元的股票
+- 不要推薦台積電（1450元）、聯發科（1200元）、廣達（270元）、欣興（160元）等高價股
+- 請從股價 ${userSettings.maxPrice} 元以下的股票中尋找高潛力標的
+` : ''}
 
 🎯 **選股重點（極度重要）：**
 1. **尋找高潛力股票**：可能漲停、大漲、爆發力強的股票
