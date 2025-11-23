@@ -731,21 +731,65 @@
                 ];
                 const randomFocus = analysisFocus[Math.floor(Math.random() * analysisFocus.length)];
 
-                // 隨機選擇市值偏好，強制多樣性
-                const marketCapPreferences = [
-                    '大型股（市值 > 1000億）',
-                    '中型股（市值 100-1000億）',
-                    '小型股（市值 < 100億）',
-                    '不限市值'
-                ];
-                const randomMarketCap = marketCapPreferences[Math.floor(Math.random() * marketCapPreferences.length)];
+                // 根據用戶設定的股價上限，生成符合條件的股票列表
+                const allStocks = {
+                    // 股價 < 30 元
+                    under30: [
+                        '2409友達(18.2元)', '2412群創(20元)', '2887台新金(20.8元)', '2002中鋼(22.8元)',
+                        '2892第一金(28.4元)', '2891中信金(28.4元)', '2880華南金(28.9元)'
+                    ],
+                    // 股價 30-60 元
+                    under60: [
+                        '2884玉山金(30.5元)', '5880合庫金(35.6元)', '2885元大金(36.2元)', '2618長榮航(38.5元)',
+                        '2353宏碁(42元)', '2886兆豐金(42.3元)', '1402遠東新(42.5元)', '3231緯創(42.5元)',
+                        '2014中鴻(43.5元)', '2105正新(48.5元)', '2324仁寶(35.8元)', '2301光寶科(58.5元)'
+                    ],
+                    // 股價 60-100 元
+                    under100: [
+                        '2882國泰金(63.6元)', '2015豐興(68元)', '1303南亞(78元)', '2609陽明(82元)',
+                        '1216統一(85元)', '2881富邦金(88.7元)', '2408南亞科(88元)', '1326台化(88元)',
+                        '1301台塑(95元)', '6505台塑化(95元)'
+                    ],
+                    // 股價 100-200 元
+                    under200: [
+                        '2615萬海(104元)', '3045台灣大(115元)', '2317鴻海(120元)', '4938和碩(125元)',
+                        '2412中華電(125元)', '3711日月光投控(160元)', '欣興(160元)'
+                    ],
+                    // 股價 > 200 元
+                    over200: [
+                        '2603長榮(225元)', '2382廣達(270元)', '9910豐泰(280元)', '2912統一超(320元)',
+                        '2308台達電(420元)', '2379瑞昱(580元)', '2357華碩(650元)', '2207和泰車(680元)',
+                        '3034聯詠(680元)', '2303聯電(850元)', '2330台積電(1050元)', '2454聯發科(1320元)',
+                        '3443創意(1850元)', '2395研華(1850元)', '3008大立光(2800元)'
+                    ]
+                };
 
-                // 明確排除的熱門股（強制 AI 推薦其他股票）
-                const commonStocks = ['台積電', '鴻海', '聯發科', '富邦金', '國泰金', '中華電', '台塑', '南亞', '台化', '中鋼'];
-                const shouldAvoidCommon = Math.random() > 0.3; // 70% 的機率避免熱門股
-                const avoidanceInstruction = shouldAvoidCommon
-                    ? `⚠️ **本次分析請避免推薦以下熱門股：${commonStocks.join('、')}**\n請從其他 1690+ 支台股中尋找機會！`
-                    : '可以考慮所有台股';
+                // 根據用戶設定的股價上限，篩選符合條件的股票
+                let eligibleStocks = [];
+                const maxPrice = userSettings.maxPrice;
+
+                if (maxPrice === 0) {
+                    // 不限制股價
+                    eligibleStocks = [...allStocks.under30, ...allStocks.under60, ...allStocks.under100, ...allStocks.under200, ...allStocks.over200];
+                } else if (maxPrice <= 30) {
+                    eligibleStocks = allStocks.under30;
+                } else if (maxPrice <= 60) {
+                    eligibleStocks = [...allStocks.under30, ...allStocks.under60];
+                } else if (maxPrice <= 100) {
+                    eligibleStocks = [...allStocks.under30, ...allStocks.under60, ...allStocks.under100];
+                } else if (maxPrice <= 200) {
+                    eligibleStocks = [...allStocks.under30, ...allStocks.under60, ...allStocks.under100, ...allStocks.under200];
+                } else {
+                    eligibleStocks = [...allStocks.under30, ...allStocks.under60, ...allStocks.under100, ...allStocks.under200, ...allStocks.over200];
+                }
+
+                // 隨機打亂順序
+                eligibleStocks = eligibleStocks.sort(() => Math.random() - 0.5);
+
+                // 生成股票選擇指引
+                const stockSelectionGuide = maxPrice > 0
+                    ? `⚠️ **用戶設定股價上限為 ${maxPrice} 元，你只能從以下股票中選擇：**\n${eligibleStocks.slice(0, 20).join('、')}\n\n**嚴格禁止推薦股價超過 ${maxPrice} 元的股票！**`
+                    : `可以從全台股中選擇，但請優先考慮以下股票：\n${eligibleStocks.slice(0, 20).join('、')}`;
 
                 // 構建包含真實股價的 prompt
                 const realPriceInfo = Object.entries(realPriceData)
@@ -762,9 +806,8 @@
 **分析次數：第 ${analysisNumber} 次**
 **本次分析風格：${randomStyle}**
 **本次分析焦點：${randomFocus}**
-**市值偏好：${randomMarketCap}**
 
-${avoidanceInstruction}
+${stockSelectionGuide}
 
 ⚠️ **重要：以下是當前真實股價數據，你必須基於這些真實價格進行分析：**
 ${realPriceInfo}
@@ -774,22 +817,19 @@ ${realPriceInfo}
 🔍 **本次分析焦點：${randomFocus}**
 
 💰 **選股策略（極度重要）：**
-1. **從全台股 1700+ 支股票中自由選擇**，不限於熱門股或大型股
-2. **本次市值偏好：${randomMarketCap}**
-3. **尋找最有潛力的股票**：
+1. ${userSettings.maxPrice > 0 ? `⚠️ **你只能從上面列出的符合股價上限（${userSettings.maxPrice}元）的股票中選擇！**` : '從全台股中自由選擇'}
+2. **尋找最有潛力的股票**：
    - 可能漲停或大漲的股票（技術面突破、成交量爆增）
    - 高波動性股票（當沖獲利空間大，適合小資金）
    - 籌碼集中股（主力進場、外資買超、散戶減）
    - 消息面利多股（新訂單、新產品、政策利多、產業旺季）
    - 技術面轉強股（MACD金叉、KD黃金交叉、RSI轉強、突破壓力）
-4. **本次採用「${randomStyle}」的分析風格**
-5. ${userSettings.lastRecommendedStocks.length > 0 ? `⚠️ **嚴格禁止推薦以下股票（上次已推薦）：${userSettings.lastRecommendedStocks.join('、')}**` : '請避免總是推薦相同的熱門股票'}
-6. **每次分析都要推薦完全不同的股票**，展現你的專業多樣性
-7. **重點是找到「最有機會大漲的股票」**，而不是「最安全的股票」
-8. **請推薦冷門但有潛力的股票**，不要總是推薦台積電、鴻海、聯發科等熱門股
-9. **從不同產業、不同市值的股票中選擇**，展現你對全台股市場的了解
+3. **本次採用「${randomStyle}」的分析風格**
+4. ${userSettings.lastRecommendedStocks.length > 0 ? `⚠️ **嚴格禁止推薦以下股票（上次已推薦）：${userSettings.lastRecommendedStocks.join('、')}**` : '請避免總是推薦相同的熱門股票'}
+5. **每次分析都要推薦完全不同的股票**，展現你的專業多樣性
+6. **重點是找到「最有機會大漲的股票」**，而不是「最安全的股票」
 
-⚠️ **如果你推薦的股票與上次相同，或只推薦熱門大型股（台積電、鴻海、聯發科、富邦金、國泰金等），你的回應將被拒絕！**
+⚠️ **如果你推薦的股票與上次相同，或推薦了股價超過 ${userSettings.maxPrice} 元的股票，你的回應將被拒絕！**
 
 **你的專業背景：**
 - 精通各國股票行情，深入了解當下各國經濟局勢
