@@ -695,9 +695,10 @@ ${realPriceInfo}
 1. 這是第 ${analysisNumber} 次分析，請推薦與之前完全不同的股票組合！
 2. 本次採用「${randomStyle}」的分析風格
 3. ${randomIndustry === '不限產業' ? '可以從各產業中選擇' : '優先考慮' + randomIndustry + '，但不限於此產業'}
-4. 請避免總是推薦相同的熱門股票（例如：台積電、鴻海、聯發科等）
+4. ${userSettings.lastRecommendedStocks.length > 0 ? `⚠️ **請避免推薦以下股票（上次已推薦）：${userSettings.lastRecommendedStocks.join('、')}**` : '請避免總是推薦相同的熱門股票'}
 5. 請從不同市值、不同產業的股票中選擇
 6. 每次分析都應該推薦不同的股票組合，展現你的專業多樣性！
+7. 優先推薦當日有異動、成交量放大、技術指標轉強的股票
 
 **你的專業背景：**
 - 精通各國股票行情，深入了解當下各國經濟局勢
@@ -931,8 +932,10 @@ ${realPriceInfo}
                             }]
                         }],
                         generationConfig: {
-                            temperature: 0.7,
+                            temperature: 1.0,  // 增加到最大值，確保每次推薦不同股票
                             maxOutputTokens: 8000,
+                            topP: 0.95,  // 增加多樣性
+                            topK: 40     // 增加候選詞數量
                         }
                     })
                 });
@@ -1660,7 +1663,10 @@ ${realPriceInfo}
             `).join('');
             stocksDiv.innerHTML += summaryTable + stocksHTML;
 
+            // 更新「上次推薦的股票」列表，用於下次分析時避免重複
+            userSettings.lastRecommendedStocks = stocks.map(stock => stock.name);
             console.log('✅ 股票分析顯示完成！K線圖連結已準備好。');
+            console.log('📝 已記錄本次推薦的股票:', userSettings.lastRecommendedStocks.join('、'));
         }
 
         // 用戶設定管理
@@ -1668,7 +1674,8 @@ ${realPriceInfo}
             investmentAmount: 10000,
             maxPrice: 0,
             minProfit: 8,
-            stockCount: 3
+            stockCount: 3,
+            lastRecommendedStocks: []  // 記錄上次推薦的股票，用於避免重複
         };
 
         // 格式化金額顯示
