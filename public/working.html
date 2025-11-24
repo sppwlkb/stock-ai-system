@@ -818,18 +818,25 @@ ${realPriceInfo}
 
 💰 **選股策略（極度重要）：**
 1. ${userSettings.maxPrice > 0 ? `⚠️ **你只能從上面列出的符合股價上限（${userSettings.maxPrice}元）的股票中選擇！**` : '從全台股中自由選擇'}
-2. **尋找最有潛力的股票**：
-   - 可能漲停或大漲的股票（技術面突破、成交量爆增）
-   - 高波動性股票（當沖獲利空間大，適合小資金）
-   - 籌碼集中股（主力進場、外資買超、散戶減）
-   - 消息面利多股（新訂單、新產品、政策利多、產業旺季）
-   - 技術面轉強股（MACD金叉、KD黃金交叉、RSI轉強、突破壓力）
-3. **本次採用「${randomStyle}」的分析風格**
-4. ${userSettings.lastRecommendedStocks.length > 0 ? `⚠️ **嚴格禁止推薦以下股票（上次已推薦）：${userSettings.lastRecommendedStocks.join('、')}**` : '請避免總是推薦相同的熱門股票'}
-5. **每次分析都要推薦完全不同的股票**，展現你的專業多樣性
-6. **重點是找到「最有機會大漲的股票」**，而不是「最安全的股票」
+2. ⚠️ **預期獲利率必須 ≥ ${userSettings.minProfit}%**（這是強制條件！）
+3. **尋找高波動性、有爆發力的股票**：
+   - 可能漲停或大漲的股票（技術面突破、成交量爆增）→ 獲利率可達 10-20%
+   - 高波動性股票（當沖獲利空間大）→ 獲利率可達 ${userSettings.minProfit}-20%
+   - 籌碼集中股（主力進場、外資買超）→ 短期爆發力強
+   - 消息面利多股（新訂單、新產品）→ 可能連續漲停
+   - 技術面轉強股（MACD金叉、KD黃金交叉）→ 趨勢向上
+4. **本次採用「${randomStyle}」的分析風格**
+5. ${userSettings.lastRecommendedStocks.length > 0 ? `⚠️ **嚴格禁止推薦以下股票（上次已推薦）：${userSettings.lastRecommendedStocks.join('、')}**` : '請避免總是推薦相同的熱門股票'}
+6. **每次分析都要推薦完全不同的股票**，展現你的專業多樣性
+7. **重點是找到「最有機會大漲的股票」**，預期獲利率要達到 ${userSettings.minProfit}% 以上
 
-⚠️ **如果你推薦的股票與上次相同，或推薦了股價超過 ${userSettings.maxPrice} 元的股票，你的回應將被拒絕！**
+⚠️ **如果你推薦的股票預期獲利率低於 ${userSettings.minProfit}%，或股價超過 ${userSettings.maxPrice} 元，你的回應將被拒絕！**
+
+💡 **如何達到 ${userSettings.minProfit}% 獲利率：**
+- 選擇高波動性股票（日波動 ≥ 5%）
+- 選擇有爆發力的股票（技術面突破、成交量放大）
+- 選擇有利多消息的股票（可能連續漲停）
+- 設定合理的目標價（例如：進場 30 元，目標 34.5 元 = 15% 獲利）
 
 **你的專業背景：**
 - 精通各國股票行情，深入了解當下各國經濟局勢
@@ -841,24 +848,23 @@ ${realPriceInfo}
 從全台股 1700+ 支股票中，找出「最有潛力、最可能大漲」的當沖標的！
 
 📋 **篩選條件（必須嚴格遵守）：**
-1. **價格條件**：${userSettings.maxPrice > 0 ? `⚠️ **股價必須低於 ${userSettings.maxPrice} 元**（這是強制條件！不要推薦台積電1450元、聯發科1200元、廣達270元等高價股）` : '股價不限制'}
+1. **價格條件**：${userSettings.maxPrice > 0 ? `⚠️ **股價必須低於 ${userSettings.maxPrice} 元**` : '股價不限制'}
 2. **成交量條件**：當日成交量超過50萬股（確保流動性）
-3. **獲利目標**：根據股票波動性設定，最低${userSettings.minProfit}%，最高可達漲停（10%）
+3. **獲利目標**：⚠️ **預期獲利率必須達到 ${userSettings.minProfit}% 以上**（這是強制條件！）
 4. **投資金額**：每次以${userSettings.investmentAmount.toLocaleString()}元入場
 
 ⚠️ **用戶設定的篩選條件（必須嚴格遵守，違反將被拒絕）：**
 - 投資金額：${userSettings.investmentAmount.toLocaleString()}元
-- ${userSettings.maxPrice > 0 ? `股價上限：${userSettings.maxPrice}元 ← **極度重要！不要推薦超過此價格的股票！**` : '股價上限：不限制'}
-- 最低獲利率：${userSettings.minProfit}%
+- ${userSettings.maxPrice > 0 ? `股價上限：${userSettings.maxPrice}元 ← **極度重要！**` : '股價上限：不限制'}
+- **最低獲利率：${userSettings.minProfit}% ← 極度重要！預期獲利率必須 ≥ ${userSettings.minProfit}%**
 - 推薦股票數：${userSettings.stockCount}支
 
-${userSettings.maxPrice > 0 ? `
 🚨 **重要提醒：**
-- 用戶設定股價上限為 ${userSettings.maxPrice} 元
-- 請只推薦股價低於 ${userSettings.maxPrice} 元的股票
-- 不要推薦台積電（1450元）、聯發科（1200元）、廣達（270元）、欣興（160元）等高價股
-- 請從股價 ${userSettings.maxPrice} 元以下的股票中尋找高潛力標的
-` : ''}
+${userSettings.maxPrice > 0 ? `- 股價上限：${userSettings.maxPrice} 元（只能從上面列出的股票中選擇）\n` : ''}
+- **預期獲利率必須 ≥ ${userSettings.minProfit}%**
+- 如果某支股票的預期獲利率只有 8-12%，但用戶要求 ${userSettings.minProfit}%，請不要推薦！
+- 請尋找高波動性、有爆發力、可能漲停的股票，以達到 ${userSettings.minProfit}% 的獲利目標
+- 當沖交易的獲利率可以設定得更高（例如 ${userSettings.minProfit}%-20%），因為是當日進出
 
 🎯 **選股重點（極度重要）：**
 1. **尋找高潛力股票**：可能漲停、大漲、爆發力強的股票
