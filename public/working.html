@@ -316,7 +316,69 @@
                         '3008': 2800, '3045': 115, '6505': 95, '9910': 280, '2912': 320
                     };
 
-                    const estimatedPrice = estimatedPrices[symbol];
+                    // 動態生成估計值：如果沒有精確的估計值，根據股票代號範圍推測
+                    let estimatedPrice = estimatedPrices[symbol];
+
+                    if (!estimatedPrice) {
+                        // 根據股票代號範圍推測合理的價格（涵蓋所有 1700+ 支台股）
+                        const code = parseInt(symbol);
+
+                        if (symbol.startsWith('00')) {
+                            // ETF (0050, 0056 等)
+                            estimatedPrice = 50;
+                        } else if (code >= 1000 && code < 2000) {
+                            // 1xxx = 傳產股（水泥、食品、塑膠、紡織等）
+                            estimatedPrice = 50;
+                        } else if (code >= 2000 && code < 2100) {
+                            // 20xx = 鋼鐵、橡膠、汽車
+                            estimatedPrice = 30;
+                        } else if (code >= 2100 && code < 2200) {
+                            // 21xx = 電子零組件
+                            estimatedPrice = 60;
+                        } else if (code >= 2200 && code < 2400) {
+                            // 22xx-23xx = 電腦及週邊、光電
+                            estimatedPrice = 40;
+                        } else if (code >= 2400 && code < 2500) {
+                            // 24xx = 半導體
+                            estimatedPrice = 100;
+                        } else if (code >= 2500 && code < 2600) {
+                            // 25xx = 電腦及週邊
+                            estimatedPrice = 50;
+                        } else if (code >= 2600 && code < 2700) {
+                            // 26xx = 航運
+                            estimatedPrice = 80;
+                        } else if (code >= 2700 && code < 2800) {
+                            // 27xx = 觀光
+                            estimatedPrice = 40;
+                        } else if (code >= 2800 && code < 2900) {
+                            // 28xx = 金融保險
+                            estimatedPrice = 25;
+                        } else if (code >= 2900 && code < 3000) {
+                            // 29xx = 貿易百貨
+                            estimatedPrice = 60;
+                        } else if (code >= 3000 && code < 4000) {
+                            // 3xxx = 電子股
+                            estimatedPrice = 80;
+                        } else if (code >= 4000 && code < 5000) {
+                            // 4xxx = 電子股
+                            estimatedPrice = 70;
+                        } else if (code >= 5000 && code < 6000) {
+                            // 5xxx = 金融、電子
+                            estimatedPrice = 50;
+                        } else if (code >= 6000 && code < 7000) {
+                            // 6xxx = 電子股
+                            estimatedPrice = 90;
+                        } else if (code >= 8000 && code < 9000) {
+                            // 8xxx = 櫃買股票
+                            estimatedPrice = 40;
+                        } else if (code >= 9000 && code < 10000) {
+                            // 9xxx = 其他
+                            estimatedPrice = 60;
+                        } else {
+                            // 預設值
+                            estimatedPrice = 50;
+                        }
+                    }
 
                     if (price > 0 && price < 5000) {
                         // 如果有估計值，檢查差異
@@ -425,13 +487,59 @@
                 '1326': 65    // 台化
             };
 
-            if (estimatedPrices[symbol]) {
-                console.log(`使用 ${symbol} 的估計價格: ${estimatedPrices[symbol]}`);
+            // 動態生成估計值：如果沒有精確的估計值，根據股票代號範圍推測
+            let finalEstimatedPrice = estimatedPrices[symbol];
+
+            if (!finalEstimatedPrice) {
+                // 根據股票代號範圍推測合理的價格（涵蓋所有 1700+ 支台股）
+                const code = parseInt(symbol);
+
+                if (symbol.startsWith('00')) {
+                    finalEstimatedPrice = 50;  // ETF
+                } else if (code >= 1000 && code < 2000) {
+                    finalEstimatedPrice = 50;  // 傳產股
+                } else if (code >= 2000 && code < 2100) {
+                    finalEstimatedPrice = 30;  // 鋼鐵、橡膠、汽車
+                } else if (code >= 2100 && code < 2200) {
+                    finalEstimatedPrice = 60;  // 電子零組件
+                } else if (code >= 2200 && code < 2400) {
+                    finalEstimatedPrice = 40;  // 電腦及週邊、光電
+                } else if (code >= 2400 && code < 2500) {
+                    finalEstimatedPrice = 100; // 半導體
+                } else if (code >= 2500 && code < 2600) {
+                    finalEstimatedPrice = 50;  // 電腦及週邊
+                } else if (code >= 2600 && code < 2700) {
+                    finalEstimatedPrice = 80;  // 航運
+                } else if (code >= 2700 && code < 2800) {
+                    finalEstimatedPrice = 40;  // 觀光
+                } else if (code >= 2800 && code < 2900) {
+                    finalEstimatedPrice = 25;  // 金融保險
+                } else if (code >= 2900 && code < 3000) {
+                    finalEstimatedPrice = 60;  // 貿易百貨
+                } else if (code >= 3000 && code < 4000) {
+                    finalEstimatedPrice = 80;  // 電子股
+                } else if (code >= 4000 && code < 5000) {
+                    finalEstimatedPrice = 70;  // 電子股
+                } else if (code >= 5000 && code < 6000) {
+                    finalEstimatedPrice = 50;  // 金融、電子
+                } else if (code >= 6000 && code < 7000) {
+                    finalEstimatedPrice = 90;  // 電子股
+                } else if (code >= 8000 && code < 9000) {
+                    finalEstimatedPrice = 40;  // 櫃買股票
+                } else if (code >= 9000 && code < 10000) {
+                    finalEstimatedPrice = 60;  // 其他
+                } else {
+                    finalEstimatedPrice = 50;  // 預設值
+                }
+            }
+
+            if (finalEstimatedPrice) {
+                console.log(`使用 ${symbol} 的估計價格: ${finalEstimatedPrice} 元（${estimatedPrices[symbol] ? '精確值' : '動態推測'}）`);
                 return {
-                    price: estimatedPrices[symbol],
+                    price: finalEstimatedPrice,
                     volume: 10000000, // 估計成交量
                     date: new Date().toISOString().slice(0, 10),
-                    source: '估計值（API 失敗）'
+                    source: estimatedPrices[symbol] ? '估計值（API 失敗）' : '估計值（動態推測）'
                 };
             }
 
