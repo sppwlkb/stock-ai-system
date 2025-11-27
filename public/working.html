@@ -201,8 +201,13 @@
 
     <script>
         // 使用 Google Gemini API（官方 API，更安全）
-        const API_KEY = 'AIzaSyAhw1qIkr0UHpIHRFyHnEVlM7WMjJ0Vrwk';
-        const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
+        // 🔒 使用後端 API（安全）- API Key 隱藏在後端
+        const BACKEND_API_URL = '/api/gemini';  // Vercel Serverless Function
+
+        // ⚠️ 備用方案：如果後端 API 失敗，使用前端直接調用（僅用於開發測試）
+        const FALLBACK_MODE = false;  // 生產環境設為 false
+        const FALLBACK_API_KEY = FALLBACK_MODE ? 'AIzaSyAhw1qIkr0UHpIHRFyHnEVlM7WMjJ0Vrwk' : null;
+        const FALLBACK_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
 
         // 獲取真實台股股價（使用多個來源）
         async function getRealStockPrice(symbol) {
@@ -1707,55 +1712,92 @@ ${realPriceInfo}
 
 只回傳 JSON，不要其他文字。`;
 
-                const response = await fetch(`${API_URL}?key=${API_KEY}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{
-                                text: prompt
-                            }]
-                        }],
-                        generationConfig: {
-                            temperature: 1.0,  // 增加到最大值，確保每次推薦不同股票
-                            maxOutputTokens: 8000,
-                            topP: 0.95,  // 增加多樣性
-                            topK: 40     // 增加候選詞數量
-                        }
-                    })
-                });
+                // 🔒 調用後端 API（安全）
+                let response;
+                try {
+                    response = await fetch(BACKEND_API_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            prompt: prompt,
+                            model: 'gemini-2.0-flash-exp',
+                            temperature: 1.0
+                        })
+                    });
+                } catch (backendError) {
+                    console.error('後端 API 調用失敗:', backendError);
+
+                    // 備用方案：如果後端失敗且啟用備用模式，使用前端直接調用
+                    if (FALLBACK_MODE && FALLBACK_API_KEY) {
+                        console.warn('使用備用方案：前端直接調用 Gemini API');
+                        response = await fetch(`${FALLBACK_API_URL}?key=${FALLBACK_API_KEY}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                contents: [{
+                                    parts: [{
+                                        text: prompt
+                                    }]
+                                }],
+                                generationConfig: {
+                                    temperature: 1.0,
+                                    maxOutputTokens: 8000,
+                                    topP: 0.95,
+                                    topK: 40
+                                }
+                            })
+                        });
+                    } else {
+                        throw new Error('後端 API 無法連接，且備用模式未啟用');
+                    }
+                }
 
                 if (!response.ok) {
-                    throw new Error(`API 錯誤: ${response.status}`);
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `API 錯誤: ${response.status}`);
                 }
 
                 result.innerHTML = '<p class="text-blue-400">⏳ 步驟3/3：解析和驗證數據...</p>';
 
                 const data = await response.json();
 
-                // 檢查 API 回應狀態
+                // 檢查後端 API 回應格式
                 console.log('API 回應狀態:', data);
-                if (data.candidates && data.candidates[0]) {
+
+                let text;
+                if (data.success && data.text) {
+                    // 後端 API 格式
+                    text = data.text;
+                    console.log('✅ 使用後端 API 回應');
+                } else if (data.candidates && data.candidates[0]) {
+                    // 前端直接調用格式（備用）
+                    text = data.candidates[0].content.parts[0].text;
+                    console.log('⚠️ 使用備用方案回應');
                     console.log('候選回應數量:', data.candidates.length);
                     console.log('完成原因:', data.candidates[0].finishReason);
+                } else {
+                    throw new Error('無法解析 API 回應格式');
                 }
-
-                // Google Gemini 的回應格式
-                const text = data.candidates[0].content.parts[0].text;
 
                 console.log('AI 原始回應:', text);
                 console.log('回應長度:', text.length, '字符');
 
-                // 檢查是否因為 token 限制而被截斷
-                if (data.candidates[0].finishReason === 'MAX_TOKENS') {
-                    console.warn('⚠️ 警告：AI 回應因達到 token 上限而被截斷！');
-                    console.warn('建議：減少推薦股票數量');
-                } else if (data.candidates[0].finishReason === 'STOP') {
-                    console.log('✅ AI 正常完成回應');
+                // 檢查是否因為 token 限制而被截斷（僅適用於備用模式）
+                if (data.candidates && data.candidates[0]) {
+                    if (data.candidates[0].finishReason === 'MAX_TOKENS') {
+                        console.warn('⚠️ 警告：AI 回應因達到 token 上限而被截斷！');
+                        console.warn('建議：減少推薦股票數量');
+                    } else if (data.candidates[0].finishReason === 'STOP') {
+                        console.log('✅ AI 正常完成回應');
+                    } else {
+                        console.warn('⚠️ 未知的完成原因:', data.candidates[0].finishReason);
+                    }
                 } else {
-                    console.warn('⚠️ 未知的完成原因:', data.candidates[0].finishReason);
+                    console.log('✅ 後端 API 正常回應');
                 }
 
                 // 解析 JSON - 超強健的處理

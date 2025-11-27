@@ -1,0 +1,143 @@
+/**
+ * Vercel Serverless Function - Gemini API 代理
+ * 用途：隱藏 API Key，提供安全的後端接口
+ */
+
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+// 速率限制配置（防止濫用）
+const RATE_LIMIT = {
+  maxRequestsPerMinute: 10,
+  maxRequestsPerHour: 100,
+};
+
+// 簡單的內存速率限制器（生產環境建議使用 Redis）
+const rateLimitStore = new Map();
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const userKey = `user:${ip}`;
+  
+  if (!rateLimitStore.has(userKey)) {
+    rateLimitStore.set(userKey, {
+      minute: { count: 0, resetTime: now + 60000 },
+      hour: { count: 0, resetTime: now + 3600000 },
+    });
+  }
+  
+  const userData = rateLimitStore.get(userKey);
+  
+  // 檢查分鐘限制
+  if (now > userData.minute.resetTime) {
+    userData.minute = { count: 0, resetTime: now + 60000 };
+  }
+  if (userData.minute.count >= RATE_LIMIT.maxRequestsPerMinute) {
+    return { allowed: false, reason: '每分鐘請求次數超過限制（最多 10 次）' };
+  }
+  
+  // 檢查小時限制
+  if (now > userData.hour.resetTime) {
+    userData.hour = { count: 0, resetTime: now + 3600000 };
+  }
+  if (userData.hour.count >= RATE_LIMIT.maxRequestsPerHour) {
+    return { allowed: false, reason: '每小時請求次數超過限制（最多 100 次）' };
+  }
+  
+  // 增加計數
+  userData.minute.count++;
+  userData.hour.count++;
+  
+  return { allowed: true };
+}
+
+export default async function handler(req, res) {
+  // 只允許 POST 請求
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+  
+  // 獲取客戶端 IP（用於速率限制）
+  const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
+  
+  // 檢查速率限制
+  const rateLimitCheck = checkRateLimit(ip);
+  if (!rateLimitCheck.allowed) {
+    return res.status(429).json({ 
+      error: 'Too Many Requests', 
+      message: rateLimitCheck.reason 
+    });
+  }
+  
+  try {
+    // 從環境變量獲取 API Key（安全）
+    const apiKey = process.env.GEMINI_API_KEY;
+    
+    if (!apiKey) {
+      console.error('GEMINI_API_KEY not found in environment variables');
+      return res.status(500).json({ 
+        error: 'Server Configuration Error',
+        message: 'API Key 未設置，請聯繫管理員'
+      });
+    }
+    
+    // 初始化 Gemini AI
+    const genAI = new GoogleGenerativeAI(apiKey);
+    
+    // 從請求中獲取參數
+    const { prompt, model = 'gemini-2.0-flash-exp', temperature = 1.0 } = req.body;
+    
+    if (!prompt) {
+      return res.status(400).json({ 
+        error: 'Bad Request',
+        message: 'prompt 參數是必需的'
+      });
+    }
+    
+    // 調用 Gemini API
+    const geminiModel = genAI.getGenerativeModel({ 
+      model: model,
+      generationConfig: {
+        temperature: temperature,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 8192,
+      }
+    });
+    
+    const result = await geminiModel.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    // 返回結果
+    return res.status(200).json({
+      success: true,
+      text: text,
+      model: model,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Gemini API Error:', error);
+    
+    // 處理不同類型的錯誤
+    if (error.message?.includes('429') || error.message?.includes('quota')) {
+      return res.status(429).json({
+        error: 'API Quota Exceeded',
+        message: 'API 配額已用完，請稍後再試'
+      });
+    }
+    
+    if (error.message?.includes('403')) {
+      return res.status(403).json({
+        error: 'API Key Invalid',
+        message: 'API Key 無效或已被撤銷'
+      });
+    }
+    
+    return res.status(500).json({
+      error: 'Internal Server Error',
+      message: error.message || '調用 AI 服務時發生錯誤'
+    });
+  }
+}
+
