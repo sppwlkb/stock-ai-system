@@ -750,6 +750,251 @@
             };
         }
 
+        // 📊 籌碼面相對性分析系統
+        function analyzeChipData(stock, chipData) {
+            // 流通股數資料庫（單位：億股）
+            const outstandingShares = {
+                '2409': 30,    // 友達
+                '2618': 10,    // 長榮航
+                '2609': 15,    // 陽明
+                '2603': 12,    // 長榮
+                '2615': 8,     // 萬海
+                '2353': 30,    // 宏碁
+                '2379': 5,     // 瑞昱
+                '3034': 3,     // 聯詠
+                '2327': 8,     // 國巨
+                '2345': 6,     // 智邦
+                '2377': 10,    // 微星
+                '2002': 50,    // 中鋼
+                '1402': 25,    // 遠東新
+            };
+
+            const shares = outstandingShares[stock.symbol] || 10;  // 預設 10 億股
+
+            // 計算外資買超佔流通股比例
+            const foreignBuyShares = chipData.foreignBuy || 0;  // 張數
+            const foreignBuyRatio = (foreignBuyShares * 1000) / (shares * 100000000);  // 轉換為比例
+
+            // 評估外資買超顯著性
+            let foreignBuySignificance = 'low';
+            let foreignBuyScore = 0;
+            if (foreignBuyRatio >= 0.01) {
+                foreignBuySignificance = 'high';
+                foreignBuyScore = 5;
+            } else if (foreignBuyRatio >= 0.005) {
+                foreignBuySignificance = 'medium';
+                foreignBuyScore = 3;
+            } else if (foreignBuyRatio >= 0.001) {
+                foreignBuySignificance = 'low';
+                foreignBuyScore = 1;
+            }
+
+            // 評估主力集中度
+            const concentration = chipData.mainForceConcentration || 0;
+            let concentrationLevel = 'low';
+            let concentrationScore = 0;
+            if (concentration >= 0.70) {
+                concentrationLevel = 'high';
+                concentrationScore = 5;
+            } else if (concentration >= 0.60) {
+                concentrationLevel = 'medium-high';
+                concentrationScore = 4;
+            } else if (concentration >= 0.50) {
+                concentrationLevel = 'medium';
+                concentrationScore = 3;
+            } else if (concentration >= 0.40) {
+                concentrationLevel = 'medium-low';
+                concentrationScore = 2;
+            } else {
+                concentrationLevel = 'low';
+                concentrationScore = 1;
+            }
+
+            // 評估融資變化顯著性
+            const marginDecrease = chipData.marginDecreaseRatio || 0;
+            let marginSignificance = 'low';
+            let marginScore = 0;
+            if (marginDecrease >= 0.10) {
+                marginSignificance = 'high';
+                marginScore = 5;
+            } else if (marginDecrease >= 0.05) {
+                marginSignificance = 'medium';
+                marginScore = 3;
+            } else if (marginDecrease >= 0.02) {
+                marginSignificance = 'low';
+                marginScore = 1;
+            }
+
+            // 綜合評分（0-15 分）
+            const totalScore = foreignBuyScore + concentrationScore + marginScore;
+            let overallRating = '⭐☆☆☆☆';
+            if (totalScore >= 13) overallRating = '⭐⭐⭐⭐⭐';
+            else if (totalScore >= 10) overallRating = '⭐⭐⭐⭐☆';
+            else if (totalScore >= 7) overallRating = '⭐⭐⭐☆☆';
+            else if (totalScore >= 4) overallRating = '⭐⭐☆☆☆';
+
+            return {
+                foreignBuyRatio: foreignBuyRatio,
+                foreignBuySignificance: foreignBuySignificance,
+                foreignBuyScore: foreignBuyScore,
+                concentrationLevel: concentrationLevel,
+                concentrationScore: concentrationScore,
+                marginSignificance: marginSignificance,
+                marginScore: marginScore,
+                totalScore: totalScore,
+                overallRating: overallRating,
+                isStrong: totalScore >= 10
+            };
+        }
+
+        // ⚠️ 技術面風險預警系統
+        function assessTechnicalRisks(technicalData) {
+            const risks = [];
+            let riskLevel = 0;  // 0-100，越高風險越大
+
+            // RSI 超買風險
+            if (technicalData.rsi >= 80) {
+                risks.push({
+                    type: 'RSI嚴重超買',
+                    level: '高',
+                    description: `RSI ${technicalData.rsi} 嚴重超買，70-80% 機率會在 1-3 天內回檔`,
+                    suggestion: '建議等待回檔到 RSI 50-60 再進場'
+                });
+                riskLevel += 40;
+            } else if (technicalData.rsi >= 70) {
+                risks.push({
+                    type: 'RSI超買',
+                    level: '中',
+                    description: `RSI ${technicalData.rsi} 接近超買，60-70% 機率會在 1-3 天內回檔`,
+                    suggestion: '建議謹慎進場或等待回檔'
+                });
+                riskLevel += 25;
+            }
+
+            // 成交量不足風險
+            if (technicalData.volumeRatio < 2) {
+                risks.push({
+                    type: '成交量不足',
+                    level: '中',
+                    description: `成交量僅放大 ${technicalData.volumeRatio.toFixed(1)} 倍，不足以支撐大漲（建議 3-5 倍）`,
+                    suggestion: '等待成交量進一步放大'
+                });
+                riskLevel += 20;
+            } else if (technicalData.volumeRatio < 3) {
+                risks.push({
+                    type: '成交量偏低',
+                    level: '低',
+                    description: `成交量放大 ${technicalData.volumeRatio.toFixed(1)} 倍，勉強足夠（建議 3-5 倍）`,
+                    suggestion: '可進場但需謹慎'
+                });
+                riskLevel += 10;
+            }
+
+            // 布林帶回歸風險
+            if (technicalData.breakBollingerBand) {
+                risks.push({
+                    type: '布林帶突破上軌',
+                    level: '中',
+                    description: '突破布林帶上軌後，50-60% 機率會回歸中軌',
+                    suggestion: '短期高點，建議等待回檔'
+                });
+                riskLevel += 15;
+            }
+
+            // KD 鈍化風險
+            if (technicalData.kValue >= 80 && technicalData.dValue >= 80) {
+                risks.push({
+                    type: 'KD鈍化',
+                    level: '低',
+                    description: `K ${technicalData.kValue} D ${technicalData.dValue} 高檔鈍化，可能失去參考價值`,
+                    suggestion: '改用其他指標輔助判斷'
+                });
+                riskLevel += 10;
+            }
+
+            // 綜合風險評估
+            let overallRisk = 'low';
+            if (riskLevel >= 50) overallRisk = 'high';
+            else if (riskLevel >= 25) overallRisk = 'medium';
+
+            return {
+                risks: risks,
+                riskLevel: riskLevel,
+                overallRisk: overallRisk,
+                hasHighRisk: risks.some(r => r.level === '高'),
+                recommendation: riskLevel >= 50 ? '不建議進場' : (riskLevel >= 25 ? '謹慎進場' : '可以進場')
+            };
+        }
+
+        // 🎯 漲停機率量化評估系統
+        function calculateLimitUpProbability(stock, technicalData, chipData) {
+            // 基礎機率（根據股票類型）
+            const baseRates = {
+                '面板股': 0.08,      // 友達等，歷史漲停頻率 8%
+                '航運股': 0.12,      // 長榮航、陽明等，歷史漲停頻率 12%
+                'IC設計股': 0.10,    // 瑞昱、聯詠等，歷史漲停頻率 10%
+                '電子零組件': 0.08,  // 國巨、智邦等，歷史漲停頻率 8%
+                '電腦股': 0.03,      // 宏碁等，歷史漲停頻率 3%
+                '其他': 0.05         // 預設值
+            };
+
+            // 判斷股票類型
+            let stockType = '其他';
+            const symbol = stock.symbol;
+            if (symbol === '2409') stockType = '面板股';
+            else if (['2618', '2609', '2603', '2615'].includes(symbol)) stockType = '航運股';
+            else if (['2379', '3034', '3443'].includes(symbol)) stockType = 'IC設計股';
+            else if (['2327', '2345', '2377'].includes(symbol)) stockType = '電子零組件';
+            else if (symbol === '2353') stockType = '電腦股';
+
+            let baseProbability = baseRates[stockType];
+
+            // 技術面加權
+            let technicalWeight = 0;
+            if (technicalData.macdGoldenCross) technicalWeight += 0.10;  // MACD 金叉 +10%
+            if (technicalData.kdGoldenCross) technicalWeight += 0.10;    // KD 黃金交叉 +10%
+            if (technicalData.rsi > 50 && technicalData.rsi < 70) technicalWeight += 0.10;  // RSI 突破 50 但未超買 +10%
+            if (technicalData.rsi >= 70) technicalWeight -= 0.15;  // RSI 超買 -15%（風險）
+            if (technicalData.volumeRatio >= 3) technicalWeight += 0.20;  // 成交量爆增 3 倍以上 +20%
+            else if (technicalData.volumeRatio >= 2) technicalWeight += 0.10;  // 成交量爆增 2 倍以上 +10%
+            if (technicalData.breakBollingerBand) technicalWeight += 0.05;  // 突破布林帶上軌 +5%
+
+            // 籌碼面加權
+            let chipWeight = 0;
+            if (chipData.foreignBuyRatio >= 0.01) chipWeight += 0.15;  // 外資買超 > 1% 流通股 +15%
+            else if (chipData.foreignBuyRatio >= 0.005) chipWeight += 0.10;  // 外資買超 > 0.5% 流通股 +10%
+            else if (chipData.foreignBuyRatio >= 0.001) chipWeight += 0.05;  // 外資買超 > 0.1% 流通股 +5%
+
+            if (chipData.mainForceConcentration >= 0.70) chipWeight += 0.15;  // 主力集中度 > 70% +15%
+            else if (chipData.mainForceConcentration >= 0.60) chipWeight += 0.10;  // 主力集中度 > 60% +10%
+            else if (chipData.mainForceConcentration >= 0.50) chipWeight += 0.05;  // 主力集中度 > 50% +5%
+
+            if (chipData.marginDecreaseRatio >= 0.10) chipWeight += 0.10;  // 融資減少 > 10% +10%
+            else if (chipData.marginDecreaseRatio >= 0.05) chipWeight += 0.05;  // 融資減少 > 5% +5%
+
+            // 消息面加權
+            let newsWeight = 0;
+            if (stock.newsImpact === 'high') newsWeight += 0.20;  // 重大利多 +20%
+            else if (stock.newsImpact === 'medium') newsWeight += 0.10;  // 一般利多 +10%
+            else if (stock.newsImpact === 'low') newsWeight += 0.05;  // 輕微利多 +5%
+
+            // 計算最終漲停機率
+            const finalProbability = baseProbability * (1 + technicalWeight + chipWeight + newsWeight);
+
+            // 限制在 0-100% 之間
+            const limitedProbability = Math.max(0, Math.min(1, finalProbability));
+
+            return {
+                probability: limitedProbability,
+                baseProbability: baseProbability,
+                technicalWeight: technicalWeight,
+                chipWeight: chipWeight,
+                newsWeight: newsWeight,
+                stockType: stockType,
+                level: limitedProbability >= 0.25 ? '高' : (limitedProbability >= 0.15 ? '中' : '低')
+            };
+        }
+
         // 驗證並修正 AI 推薦的股票價格
         async function validateAndCorrectStocks(stocks) {
             // 🚨 強制過濾：移除大型權值股和所有金融股（不依賴 AI 判斷）
