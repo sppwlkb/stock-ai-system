@@ -82,7 +82,8 @@ export default async function handler(req, res) {
     }
 
     // 從請求中獲取參數
-    const { prompt, model = 'gemini-2.0-flash-exp', temperature = 1.0 } = req.body;
+    // 預設使用 gemini-1.5-flash（免費），而不是 gemini-2.0-flash-exp（需付費）
+    const { prompt, model = 'gemini-1.5-flash', temperature = 1.0 } = req.body;
 
     if (!prompt) {
       return res.status(400).json({

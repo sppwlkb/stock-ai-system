@@ -1713,6 +1713,7 @@ ${realPriceInfo}
 只回傳 JSON，不要其他文字。`;
 
                 // 🔒 調用後端 API（安全）
+                // 使用 gemini-1.5-flash（免費）而不是 gemini-2.0-flash-exp（需付費）
                 let response;
                 try {
                     response = await fetch(BACKEND_API_URL, {
@@ -1722,7 +1723,7 @@ ${realPriceInfo}
                         },
                         body: JSON.stringify({
                             prompt: prompt,
-                            model: 'gemini-2.0-flash-exp',
+                            model: 'gemini-1.5-flash',  // 使用免費模型
                             temperature: 1.0
                         })
                     });
