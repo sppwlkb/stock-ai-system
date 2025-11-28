@@ -82,8 +82,13 @@ export default async function handler(req, res) {
     }
 
     // 從請求中獲取參數
-    // 使用完整的模型路徑格式
-    const { prompt, model = 'gemini-1.5-flash-latest', temperature = 1.0 } = req.body;
+    // 使用完整的模型路徑格式（包含 models/ 前綴）
+    let { prompt, model = 'gemini-1.5-flash-latest', temperature = 1.0 } = req.body;
+
+    // 確保模型名稱包含 models/ 前綴
+    if (!model.startsWith('models/')) {
+      model = `models/${model}`;
+    }
 
     if (!prompt) {
       return res.status(400).json({
