@@ -115,8 +115,22 @@ export default async function handler(req, res) {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || `API Error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Gemini API Error Response:', errorText);
+      console.error('Status:', response.status);
+
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch (e) {
+        errorData = { error: { message: errorText } };
+      }
+
+      // 詳細的錯誤訊息
+      const errorMessage = errorData.error?.message || errorText || `API Error: ${response.status}`;
+      console.error('Parsed Error Message:', errorMessage);
+
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
@@ -138,25 +152,40 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Gemini API Error:', error);
+    console.error('Error Message:', error.message);
+    console.error('Error Stack:', error.stack);
 
     // 處理不同類型的錯誤
-    if (error.message?.includes('429') || error.message?.includes('quota')) {
+    if (error.message?.includes('429') || error.message?.includes('quota') || error.message?.includes('RESOURCE_EXHAUSTED')) {
       return res.status(429).json({
         error: 'API Quota Exceeded',
-        message: 'API 配額已用完，請稍後再試'
+        message: 'API 配額已用完，請稍後再試',
+        details: error.message
       });
     }
 
-    if (error.message?.includes('403')) {
+    if (error.message?.includes('403') || error.message?.includes('API_KEY_INVALID')) {
       return res.status(403).json({
         error: 'API Key Invalid',
-        message: 'API Key 無效或已被撤銷'
+        message: 'API Key 無效或已被撤銷',
+        details: error.message
       });
     }
 
+    if (error.message?.includes('400') || error.message?.includes('INVALID_ARGUMENT')) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: '請求參數錯誤',
+        details: error.message
+      });
+    }
+
+    // 返回詳細的錯誤訊息（用於調試）
     return res.status(500).json({
       error: 'Internal Server Error',
-      message: error.message || '調用 AI 服務時發生錯誤'
+      message: error.message || '調用 AI 服務時發生錯誤',
+      details: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 }

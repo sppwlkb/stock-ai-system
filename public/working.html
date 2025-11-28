@@ -1758,7 +1758,12 @@ ${realPriceInfo}
 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(errorData.message || `API 錯誤: ${response.status}`);
+                    console.error('❌ 後端 API 錯誤:', errorData);
+                    console.error('錯誤詳情:', errorData.details);
+
+                    // 顯示詳細的錯誤訊息
+                    const errorMessage = errorData.details || errorData.message || `API 錯誤: ${response.status}`;
+                    throw new Error(errorMessage);
                 }
 
                 result.innerHTML = '<p class="text-blue-400">⏳ 步驟3/3：解析和驗證數據...</p>';
