@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API 測試工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8">🧪 Gemini API 測試工具</h1>
+        
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">測試後端 API</h2>
+            <button id="testBtn" class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-bold mb-4">
+                測試 API
+            </button>
+            <div id="result" class="mt-4"></div>
+        </div>
+
+        <div class="bg-gray-800 rounded-lg p-6">
+            <h2 class="text-xl font-bold mb-4">📋 測試日誌</h2>
+            <div id="logs" class="space-y-2 text-sm font-mono"></div>
+        </div>
+    </div>
+
+    <script>
+        const logs = document.getElementById('logs');
+        
+        function log(message, type = 'info') {
+            const colors = {
+                info: 'text-blue-400',
+                success: 'text-green-400',
+                error: 'text-red-400',
+                warning: 'text-yellow-400'
+            };
+            const p = document.createElement('p');
+            p.className = colors[type];
+            p.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logs.appendChild(p);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        document.getElementById('testBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('testBtn');
+            const result = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.textContent = '測試中...';
+            result.innerHTML = '';
+            logs.innerHTML = '';
+            
+            log('開始測試後端 API...', 'info');
+            
+            try {
+                log('發送請求到 /api/gemini', 'info');
+                log('模型: gemini-1.5-flash', 'info');
+                log('提示詞: 請回答：1+1=?', 'info');
+                
+                const response = await fetch('/api/gemini', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        prompt: '請回答：1+1=?',
+                        model: 'gemini-1.5-flash',
+                        temperature: 1.0
+                    })
+                });
+                
+                log(`HTTP 狀態碼: ${response.status}`, response.ok ? 'success' : 'error');
+                
+                const data = await response.json();
+                log('收到回應', 'success');
+                log(JSON.stringify(data, null, 2), 'info');
+                
+                if (response.ok && data.success) {
+                    result.innerHTML = `
+                        <div class="bg-green-900 border border-green-700 rounded-lg p-4">
+                            <h3 class="font-bold text-green-400 mb-2">✅ API 測試成功！</h3>
+                            <p class="text-gray-300 mb-2">模型: ${data.model || 'gemini-1.5-flash'}</p>
+                            <p class="text-gray-300 mb-2">時間戳: ${data.timestamp}</p>
+                            <div class="mt-4 bg-gray-800 p-3 rounded">
+                                <p class="text-sm text-gray-400 mb-1">AI 回應：</p>
+                                <p class="text-white">${data.text}</p>
+                            </div>
+                        </div>
+                    `;
+                    log('✅ 測試成功！API 正常運作', 'success');
+                } else {
+                    throw new Error(data.message || data.details || '未知錯誤');
+                }
+            } catch (error) {
+                log(`❌ 錯誤: ${error.message}`, 'error');
+                result.innerHTML = `
+                    <div class="bg-red-900 border border-red-700 rounded-lg p-4">
+                        <h3 class="font-bold text-red-400 mb-2">❌ API 測試失敗</h3>
+                        <p class="text-gray-300 mb-2">錯誤訊息：${error.message}</p>
+                        <div class="mt-4 text-sm text-gray-400">
+                            <p class="font-bold mb-2">可能的原因：</p>
+                            <ul class="list-disc list-inside space-y-1">
+                                <li>API Key 未設置或無效</li>
+                                <li>模型名稱錯誤</li>
+                                <li>API 配額已用完</li>
+                                <li>網路連接問題</li>
+                            </ul>
+                        </div>
+                        <div class="mt-4">
+                            <p class="font-bold mb-2 text-yellow-400">解決步驟：</p>
+                            <ol class="list-decimal list-inside space-y-1 text-sm">
+                                <li>檢查 Vercel 環境變量是否設置了 GEMINI_API_KEY</li>
+                                <li>確認 API Key 有效且未過期</li>
+                                <li>訪問 <a href="https://ai.google.dev/gemini-api/docs/models/gemini" target="_blank" class="text-blue-400 underline">Gemini 模型文檔</a> 確認可用模型</li>
+                                <li>檢查 Vercel 部署日誌</li>
+                            </ol>
+                        </div>
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '測試 API';
+            }
+        });
+        
+        // 頁面加載時顯示提示
+        log('頁面已加載，點擊「測試 API」按鈕開始測試', 'info');
+        log('確保已在 Vercel 設置 GEMINI_API_KEY 環境變量', 'warning');
+    </script>
+</body>
+</html>
+
