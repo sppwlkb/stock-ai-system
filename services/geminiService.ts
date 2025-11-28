@@ -1,10 +1,40 @@
 
-import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import type { StockRecommendation, GroundingChunk, NewsArticle, HistoricalDataPoint } from '../types';
 
-// API key - 直接使用
-const apiKey = 'AIzaSyCodEpEezZ804-7TlwSJj5o19QBX1fpGSM';
-const ai = new GoogleGenAI(apiKey);
+// 🔒 使用後端 API（安全）- API Key 隱藏在後端
+const BACKEND_API_URL = '/api/gemini';
+
+// 後端 API 調用函數
+async function callBackendAPI(prompt: string, useGoogleSearch: boolean = false): Promise<any> {
+  const response = await fetch(BACKEND_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      prompt: prompt,
+      model: 'gemini-2.0-flash-exp',
+      temperature: useGoogleSearch ? 0.4 : 1.0,
+      useGoogleSearch: useGoogleSearch
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || `API 錯誤: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  if (!data.success || !data.text) {
+    throw new Error('無法從後端 API 獲取回應');
+  }
+
+  return {
+    text: data.text,
+    candidates: data.candidates || []
+  };
+}
 
 const systemInstruction = `你是一位擁有20年經驗的華爾街避險基金 (Hedge Fund) 資深量化操盤手。你擅長使用「價格行為 (Price Action)」與「量價分析 (VPA)」結合「演算法交易策略」。
 
@@ -97,15 +127,11 @@ async function retryWithBackoff<T>(operation: () => Promise<T>, retries: number 
 
 export const getTradingRecommendations = async (): Promise<{ recommendations: StockRecommendation[], sources: GroundingChunk[] }> => {
   try {
-    const response = await retryWithBackoff<GenerateContentResponse>(() => ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: "請掃描今日台股市場，找出股價 50 元以下，技術型態最強勢的「日內波段」標的。我需要高勝率的 setup。請透過 Google Search 獲取最新報價。Reason 欄位必須寫成結構化的量化分析報告，包含【演算法訊號】、【技術面共振】、【籌碼與量價】、【交易計畫】四大段落。",
-      config: {
-        systemInstruction: systemInstruction,
-        tools: [{googleSearch: {}}],
-        temperature: 0.4, // Lower temperature for more precise/analytical output
-      },
-    }));
+    const fullPrompt = `${systemInstruction}
+
+請掃描今日台股市場，找出股價 50 元以下，技術型態最強勢的「日內波段」標的。我需要高勝率的 setup。請透過 Google Search 獲取最新報價。Reason 欄位必須寫成結構化的量化分析報告，包含【演算法訊號】、【技術面共振】、【籌碼與量價】、【交易計畫】四大段落。`;
+
+    const response = await retryWithBackoff(() => callBackendAPI(fullPrompt, true));
 
     const text = response.text;
     
@@ -203,9 +229,7 @@ export const getHistoricalStockData = async (stockName: string, ticker: string, 
 
 export const getStockNews = async (stockName: string): Promise<NewsArticle[]> => {
   try {
-    const response = await retryWithBackoff<GenerateContentResponse>(() => ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: `使用Google搜尋，為「${stockName}」這支股票找出 3 至 5 則最新的相關財經新聞。請以繁體中文、嚴格的 JSON 格式陣列回覆。不要有任何 JSON 以外的文字、解釋或註解。
+    const prompt = `使用Google搜尋，為「${stockName}」這支股票找出 3 至 5 則最新的相關財經新聞。請以繁體中文、嚴格的 JSON 格式陣列回覆。不要有任何 JSON 以外的文字、解釋或註解。
 回傳的 JSON 格式必須如下：
 \`\`\`json
 [
@@ -215,11 +239,9 @@ export const getStockNews = async (stockName: string): Promise<NewsArticle[]> =>
     "source": "新聞來源 (例如: 鉅亨網, Anue)"
   }
 ]
-\`\`\``,
-      config: {
-        tools: [{ googleSearch: {} }],
-      },
-    }));
+\`\`\``;
+
+    const response = await retryWithBackoff(() => callBackendAPI(prompt, true));
 
     const text = response.text?.trim();
     if (!text) {
