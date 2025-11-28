@@ -82,8 +82,8 @@ export default async function handler(req, res) {
     }
 
     // 從請求中獲取參數
-    // 預設使用 gemini-1.5-flash-latest（免費），而不是 gemini-2.0-flash-exp（需付費）
-    const { prompt, model = 'gemini-1.5-flash-latest', temperature = 1.0 } = req.body;
+    // 預設使用 gemini-1.5-flash（免費），在 v1 API 中可用
+    const { prompt, model = 'gemini-1.5-flash', temperature = 1.0 } = req.body;
 
     if (!prompt) {
       return res.status(400).json({
@@ -93,7 +93,8 @@ export default async function handler(req, res) {
     }
 
     // 使用 fetch 直接調用 Gemini REST API
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    // 使用 v1 API（穩定版）而不是 v1beta
+    const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
 
     const response = await fetch(apiUrl, {
       method: 'POST',
