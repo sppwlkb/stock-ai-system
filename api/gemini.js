@@ -82,12 +82,24 @@ export default async function handler(req, res) {
     }
 
     // 從請求中獲取參數
-    // 使用 gemini-flash-latest（最新的免費 Flash 模型）
-    let { prompt, model = 'gemini-flash-latest', temperature = 1.0 } = req.body;
+    // 使用 gemini-2.0-flash（穩定的免費模型）
+    let { prompt, model = 'gemini-2.0-flash', temperature = 1.0 } = req.body;
 
-    // 確保模型名稱包含 models/ 前綴
-    if (!model.startsWith('models/')) {
-      model = `models/${model}`;
+    // 模型名稱映射（修正錯誤的模型名稱）
+    const modelMapping = {
+      'gemini-flash-latest': 'gemini-2.0-flash',
+      'gemini-flash': 'gemini-2.0-flash',
+      'gemini-pro': 'gemini-1.5-pro',
+    };
+
+    // 移除 models/ 前綴（如果有）
+    if (model.startsWith('models/')) {
+      model = model.replace('models/', '');
+    }
+
+    // 應用模型名稱映射
+    if (modelMapping[model]) {
+      model = modelMapping[model];
     }
 
     if (!prompt) {
@@ -100,6 +112,8 @@ export default async function handler(req, res) {
     // 使用 fetch 直接調用 Gemini REST API
     // 使用 v1beta API（支持更多模型）
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+    console.log('Calling Gemini API with model:', model);
 
     const response = await fetch(apiUrl, {
       method: 'POST',
