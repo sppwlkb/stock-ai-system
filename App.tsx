@@ -281,7 +281,7 @@ const App: React.FC = () => {
         <header className="flex items-center justify-center space-x-4 p-4 mb-8 border-b-2 border-gray-700">
           <ChartIcon className="w-10 h-10 text-blue-400" />
           <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-300">
-            資深股市分析師 AI 助理
+            小七 AI 選股系統 3.0
           </h1>
         </header>
 
