@@ -4,7 +4,8 @@ import { getTradingRecommendations, getStockNews, getHistoricalStockData } from 
 import { fetchInitialLivePrices, updateLivePrices } from './services/stockDataService';
 import { assessRisk } from './services/riskManagement';
 import { performTechnicalAnalysis } from './services/technicalIndicators';
-import type { StockRecommendation, GroundingChunk } from './types';
+import type { StockRecommendation, GroundingChunk, FilterSettings } from './types';
+import { DEFAULT_FILTER_SETTINGS } from './types';
 import { LoadingIndicator } from './components/LoadingIndicator';
 import { StockTable } from './components/StockTable';
 import { ChartIcon } from './components/icons/ChartIcon';
@@ -12,6 +13,7 @@ import { AnalyzeIcon } from './components/icons/AnalyzeIcon';
 import { GroundingSources } from './components/GroundingSources';
 import { RefreshIcon } from './components/icons/RefreshIcon';
 import { EnhancedDisclaimer, RiskConfirmationModal } from './components/EnhancedDisclaimer';
+import { FilterSettingsPanel, loadFilterSettings } from './components/FilterSettingsPanel';
 
 const App: React.FC = () => {
   const [recommendations, setRecommendations] = useState<StockRecommendation[]>([]);
@@ -22,8 +24,17 @@ const App: React.FC = () => {
   const [showRiskModal, setShowRiskModal] = useState<boolean>(false);
   const [hasAcceptedRisk, setHasAcceptedRisk] = useState<boolean>(false);
 
-  // 檢查是否已接受風險聲明（使用 localStorage）
+  // 篩選設定狀態
+  const [filterSettings, setFilterSettings] = useState<FilterSettings>(DEFAULT_FILTER_SETTINGS);
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState<boolean>(false);
+
+  // 初始化：載入用戶儲存的篩選設定和風險聲明狀態
   useEffect(() => {
+    // 載入篩選設定
+    const savedSettings = loadFilterSettings();
+    setFilterSettings(savedSettings);
+
+    // 檢查是否已接受風險聲明
     const accepted = localStorage.getItem('riskAccepted');
     if (accepted === 'true') {
       setHasAcceptedRisk(true);
@@ -50,7 +61,8 @@ const App: React.FC = () => {
     setSources([]);
     setAnalysisTime(null);
     try {
-      const { recommendations: result, sources: groundingSources } = await getTradingRecommendations();
+      // 使用用戶的篩選設定來獲取 AI 推薦
+      const { recommendations: result, sources: groundingSources } = await getTradingRecommendations(filterSettings);
       if (result && result.length > 0) {
         // First, get the initial "live" prices for the recommendations
         const initialPrices = await fetchInitialLivePrices(result);
@@ -175,13 +187,13 @@ const App: React.FC = () => {
 
 
   const WelcomeMessage: React.FC = () => (
-    <div className="text-center p-8 bg-gray-800/50 rounded-lg max-w-2xl mx-auto">
-      <h2 className="text-2xl font-bold text-blue-300 mb-4">歡迎使用 AI 股市分析師助理 v2.0</h2>
+    <div className="text-center p-8 bg-gray-800/50 rounded-lg max-w-4xl mx-auto">
+      <h2 className="text-2xl font-bold text-blue-300 mb-4">歡迎使用 AI 股市分析師助理 v3.0</h2>
       <p className="text-gray-400 mb-4">
         本系統整合 <span className="font-bold text-teal-300">台灣證交所真實股價 API</span>、
         <span className="font-bold text-purple-300">AI 智能分析</span> 與
         <span className="font-bold text-orange-300">專業風險管理</span>，
-        為您篩選股價 50 元以下、具潛力的台股標的。
+        為您篩選符合個人偏好的台股標的。
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 text-sm">
@@ -194,9 +206,19 @@ const App: React.FC = () => {
           <p className="text-gray-400 text-xs mt-1">Gemini 2.5 Flash 模型</p>
         </div>
         <div className="bg-orange-900/30 p-3 rounded-md border border-orange-600">
-          <p className="font-semibold text-orange-300">⚡ 風險評估</p>
-          <p className="text-gray-400 text-xs mt-1">專業風險管理系統</p>
+          <p className="font-semibold text-orange-300">⚡ 自訂篩選</p>
+          <p className="text-gray-400 text-xs mt-1">個人化投資偏好設定</p>
         </div>
+      </div>
+
+      {/* 篩選設定面板 */}
+      <div className="text-left mb-6">
+        <FilterSettingsPanel
+          settings={filterSettings}
+          onSettingsChange={setFilterSettings}
+          isOpen={isFilterPanelOpen}
+          onToggle={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+        />
       </div>
 
       <p className="text-sm text-yellow-400/80 mb-8">
@@ -251,19 +273,54 @@ const App: React.FC = () => {
 
           {recommendations.length > 0 && (
             <div className="space-y-6 animate-fade-in">
-              <div className="flex flex-col sm:flex-row justify-between items-center p-4 bg-gray-800/50 rounded-lg mb-4">
-                <div className="text-sm text-gray-300 mb-2 sm:mb-0">
-                  <p><span className="font-bold text-blue-300">分析完成時間：</span>{analysisTime}</p>
-                  <p className="mt-1">為確保資訊即時性，建議在 <span className="font-bold">15-30 分鐘內</span> 參考此分析。</p>
+              {/* 分析結果頂部：時間、篩選條件摘要、重新分析按鈕 */}
+              <div className="p-4 bg-gray-800/50 rounded-lg mb-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div className="text-sm text-gray-300">
+                    <p><span className="font-bold text-blue-300">分析完成時間：</span>{analysisTime}</p>
+                    <p className="mt-1">為確保資訊即時性，建議在 <span className="font-bold">15-30 分鐘內</span> 參考此分析。</p>
+                    {/* 顯示當前篩選條件 */}
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <span className="px-2 py-0.5 bg-blue-900/50 text-blue-300 rounded text-xs">
+                        股價: {filterSettings.priceRange.min}~{filterSettings.priceRange.max}元
+                      </span>
+                      <span className="px-2 py-0.5 bg-green-900/50 text-green-300 rounded text-xs">
+                        目標: +{filterSettings.targetProfitRate}%
+                      </span>
+                      <span className="px-2 py-0.5 bg-purple-900/50 text-purple-300 rounded text-xs">
+                        本金: {(filterSettings.capital / 10000).toFixed(1)}萬
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+                      className="inline-flex items-center justify-center px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg shadow-md transition-colors duration-300"
+                    >
+                      ⚙️ 篩選設定
+                    </button>
+                    <button
+                      onClick={handleAnalyzeClick}
+                      disabled={isLoading}
+                      className="inline-flex items-center justify-center px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800/50 disabled:cursor-not-allowed text-white font-semibold rounded-lg shadow-md transition-colors duration-300"
+                    >
+                      <RefreshIcon className="w-5 h-5 mr-2" />
+                      重新分析
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={handleAnalyzeClick}
-                  disabled={isLoading}
-                  className="inline-flex items-center justify-center px-6 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800/50 disabled:cursor-not-allowed text-white font-semibold rounded-lg shadow-md transition-colors duration-300"
-                >
-                  <RefreshIcon className="w-5 h-5 mr-2" />
-                  重新分析
-                </button>
+
+                {/* 可展開的篩選設定面板 */}
+                {isFilterPanelOpen && (
+                  <div className="mt-4 pt-4 border-t border-gray-700">
+                    <FilterSettingsPanel
+                      settings={filterSettings}
+                      onSettingsChange={setFilterSettings}
+                      isOpen={true}
+                      onToggle={() => setIsFilterPanelOpen(false)}
+                    />
+                  </div>
+                )}
               </div>
               <StockTable recommendations={recommendations} />
               <GroundingSources sources={sources} />

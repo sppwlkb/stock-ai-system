@@ -1,5 +1,6 @@
 
-import type { StockRecommendation, GroundingChunk, NewsArticle, HistoricalDataPoint } from '../types';
+import type { StockRecommendation, GroundingChunk, NewsArticle, HistoricalDataPoint, FilterSettings } from '../types';
+import { DEFAULT_FILTER_SETTINGS, RISK_LEVEL_LABELS } from '../types';
 
 // 🔒 使用後端 API（安全）- API Key 隱藏在後端
 const BACKEND_API_URL = '/api/gemini';
@@ -36,10 +37,34 @@ async function callBackendAPI(prompt: string, useGoogleSearch: boolean = false):
   };
 }
 
-const systemInstruction = `你是一位擁有20年經驗的華爾街避險基金 (Hedge Fund) 資深量化操盤手。你擅長使用「價格行為 (Price Action)」與「量價分析 (VPA)」結合「演算法交易策略」。
+/**
+ * 根據用戶設定動態生成 AI 系統指令
+ * @param settings 用戶篩選設定
+ * @returns 動態生成的系統指令
+ */
+const generateSystemInstruction = (settings: FilterSettings): string => {
+  // 根據風險等級決定損益比要求
+  const riskRewardRatio = settings.riskLevel === 'conservative' ? '1:3' :
+                          settings.riskLevel === 'moderate' ? '1:2' : '1:1.5';
+
+  // 根據風險等級決定選股策略描述
+  const riskStrategy = settings.riskLevel === 'conservative'
+    ? '優先選擇低波動、業績穩定的大型股或權值股，避免投機性質高的標的'
+    : settings.riskLevel === 'moderate'
+    ? '平衡成長性與穩定性，選擇具有技術突破訊號的中型股'
+    : '可以選擇高成長性、高波動的小型股或題材股，追求較高報酬';
+
+  return `你是一位擁有20年經驗的華爾街避險基金 (Hedge Fund) 資深量化操盤手。你擅長使用「價格行為 (Price Action)」與「量價分析 (VPA)」結合「演算法交易策略」。
 
 你的核心任務是解決使用者的痛點：**「理由太簡單，缺乏專業深度」。**
 使用者希望看到的是一份**機構等級的交易決策報告**，而不僅僅是散戶等級的建議。
+
+【用戶篩選條件】：
+- 股價範圍：${settings.priceRange.min} ~ ${settings.priceRange.max} 元
+- 推薦股票數量：${settings.stockCount} 支
+- 目標獲利率：${settings.targetProfitRate}%
+- 風險偏好：${RISK_LEVEL_LABELS[settings.riskLevel]}
+- 投資本金：${settings.capital.toLocaleString()} 元
 
 請遵守以下演算法規則 (System Protocol)：
 
@@ -47,9 +72,11 @@ const systemInstruction = `你是一位擁有20年經驗的華爾街避險基金
     *   搜尋該股票的最新成交價。若無法取得「即時」盤中價，**請直接使用「昨日收盤價」或「最新查到的價格」作為基準**。
 
 2.  **選股濾網 (High Probability Setup)**：
-    *   **首選條件**：股價 **50 元以下** (符合小資操作)。
-    *   **獲利門檻**：扣除手續費(0.6%)後，目標淨利必須顯著。尋找潛在漲幅 **> 4%** 的標的。
-    *   **損益比 (R:R)**：必須大於 **1:3** (願意承擔 1 元風險，換取 3 元獲利)。
+    *   **價格條件**：股價必須在 **${settings.priceRange.min} ~ ${settings.priceRange.max} 元** 之間。
+    *   **數量要求**：請推薦 **${settings.stockCount} 支** 符合條件的股票。
+    *   **獲利門檻**：扣除手續費(0.6%)後，目標淨利必須顯著。尋找潛在漲幅 **> ${settings.targetProfitRate}%** 的標的。
+    *   **損益比 (R:R)**：必須大於 **${riskRewardRatio}** (願意承擔 1 元風險，換取相應獲利)。
+    *   **風險策略**：${riskStrategy}
     *   **例外處理**：若無完美標的，請放寬標準推薦「相對強勢」的股票，並在理由中註明風險。**絕對禁止**不回答或回傳錯誤。
 
 3.  **進出場策略 (Precision Execution)**：
@@ -59,7 +86,7 @@ const systemInstruction = `你是一位擁有20年經驗的華爾街避險基金
 
 4.  **資金與輸出格式**：
     *   'ticker': 4位數字代碼。
-    *   'sharesToBuy': 以 **新台幣 10,000 元 (一萬元)** 本金計算。公式：floor(10000 / entryPoint)。允許零股。
+    *   'sharesToBuy': 以 **新台幣 ${settings.capital.toLocaleString()} 元** 本金計算。公式：floor(${settings.capital} / entryPoint)。允許零股。
     *   'reason': **必須是「機構級量化交易報告」，字數 200 字以上，嚴禁廢話。必須包含以下四個段落 (請使用換行符號排版)**：
         *   **【演算法訊號】**：明確指出觸發了什麼策略 (例如：VWAP 均價回歸、ORB 開盤區間突破、VCP 波動率收縮、主力吸籌完成)。
         *   **【技術面共振】**：列出至少 3 個支持進場的技術指標狀態 (例如：MACD 零軸上翻紅、RSI 突破 50 轉強、布林通道開口向上)。
@@ -69,7 +96,7 @@ const systemInstruction = `你是一位擁有20年經驗的華爾街避險基金
 5.  **格式要求 (CRITICAL)**：
     *   **絕對禁止**輸出任何 JSON 格式以外的文字。
     *   **絕對禁止**輸出 "很抱歉"、"找不到" 等解釋性文字。
-    *   直接回傳 JSON Array。
+    *   直接回傳 JSON Array，包含 **${settings.stockCount} 支** 股票。
 
 JSON 結構範例 (務必回傳 currentPrice)：
 \`\`\`json
@@ -90,6 +117,7 @@ JSON 結構範例 (務必回傳 currentPrice)：
 ]
 \`\`\`
 `;
+};
 
 /**
  * Helper function to retry API calls with exponential backoff on 429/503 errors.
@@ -125,11 +153,27 @@ async function retryWithBackoff<T>(operation: () => Promise<T>, retries: number 
 }
 
 
-export const getTradingRecommendations = async (): Promise<{ recommendations: StockRecommendation[], sources: GroundingChunk[] }> => {
+/**
+ * 獲取 AI 股票推薦
+ * @param filterSettings 用戶篩選設定（可選，預設使用 DEFAULT_FILTER_SETTINGS）
+ * @returns AI 推薦的股票清單和資料來源
+ */
+export const getTradingRecommendations = async (
+  filterSettings: FilterSettings = DEFAULT_FILTER_SETTINGS
+): Promise<{ recommendations: StockRecommendation[], sources: GroundingChunk[] }> => {
   try {
+    // 根據用戶設定動態生成系統指令
+    const systemInstruction = generateSystemInstruction(filterSettings);
+
     const fullPrompt = `${systemInstruction}
 
-請掃描今日台股市場，找出股價 50 元以下，技術型態最強勢的「日內波段」標的。我需要高勝率的 setup。請透過 Google Search 獲取最新報價。Reason 欄位必須寫成結構化的量化分析報告，包含【演算法訊號】、【技術面共振】、【籌碼與量價】、【交易計畫】四大段落。`;
+請掃描今日台股市場，找出股價 ${filterSettings.priceRange.min} ~ ${filterSettings.priceRange.max} 元之間，技術型態最強勢的「日內波段」標的。
+推薦數量：${filterSettings.stockCount} 支股票。
+目標漲幅：${filterSettings.targetProfitRate}% 以上。
+風險偏好：${RISK_LEVEL_LABELS[filterSettings.riskLevel]}。
+投資本金：${filterSettings.capital.toLocaleString()} 元。
+
+我需要高勝率的 setup。請透過 Google Search 獲取最新報價。Reason 欄位必須寫成結構化的量化分析報告，包含【演算法訊號】、【技術面共振】、【籌碼與量價】、【交易計畫】四大段落。`;
 
     const response = await retryWithBackoff(() => callBackendAPI(fullPrompt, true));
 
