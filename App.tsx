@@ -82,7 +82,8 @@ const App: React.FC = () => {
     setSources([]);
     setAnalysisTime(null);
 
-    // 同時獲取市場分析（背景執行，不阻塞主流程）
+    // 先獲取市場分析（使用快取減少 API 配額消耗）
+    // 市場分析會優先使用 30 分鐘內的快取，不會每次都呼叫 API
     fetchMarketAnalysis();
 
     try {

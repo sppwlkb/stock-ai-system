@@ -8,6 +8,15 @@ import type { MarketAnalysis } from '../types';
 // 使用後端 API 呼叫 Gemini
 const BACKEND_API_URL = '/api/gemini';
 
+// 快取設定：30 分鐘內使用相同的市場分析結果
+const CACHE_KEY = 'marketAnalysisCache';
+const CACHE_DURATION_MS = 30 * 60 * 1000; // 30 分鐘
+
+interface CachedData {
+  data: MarketAnalysis;
+  timestamp: number;
+}
+
 /**
  * 市場分析 Prompt
  */
@@ -102,10 +111,57 @@ function parseMarketAnalysisResponse(text: string): Partial<MarketAnalysis> {
 }
 
 /**
- * 獲取市場分析資料
+ * 從快取獲取市場分析（如果未過期）
+ */
+function getCachedAnalysis(): MarketAnalysis | null {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+
+    const { data, timestamp }: CachedData = JSON.parse(cached);
+    const now = Date.now();
+
+    // 檢查是否過期（30 分鐘）
+    if (now - timestamp < CACHE_DURATION_MS) {
+      console.log('📦 使用快取的市場分析資料');
+      return data;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 儲存市場分析到快取
+ */
+function setCachedAnalysis(data: MarketAnalysis): void {
+  try {
+    const cacheData: CachedData = {
+      data,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+  } catch (e) {
+    console.warn('無法儲存市場分析快取:', e);
+  }
+}
+
+/**
+ * 獲取市場分析資料（優先使用快取，減少 API 配額消耗）
+ * @param forceRefresh 是否強制重新獲取（忽略快取）
  * @returns 市場分析資料
  */
-export async function getMarketAnalysis(): Promise<MarketAnalysis> {
+export async function getMarketAnalysis(forceRefresh = false): Promise<MarketAnalysis> {
+  // 優先檢查快取（除非強制刷新）
+  if (!forceRefresh) {
+    const cached = getCachedAnalysis();
+    if (cached) {
+      return cached;
+    }
+  }
+
   try {
     const response = await callMarketAnalysisAPI();
     const parsed = parseMarketAnalysisResponse(response.text || '');
@@ -146,9 +202,23 @@ export async function getMarketAnalysis(): Promise<MarketAnalysis> {
       ) || [],
     };
 
+    // 儲存到快取
+    setCachedAnalysis(analysis);
+
     return analysis;
   } catch (error) {
     console.error('獲取市場分析失敗:', error);
+
+    // 如果 API 失敗但有快取，返回快取資料（即使已過期）
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const { data }: CachedData = JSON.parse(cached);
+        console.log('📦 API 失敗，使用過期的快取資料');
+        return data;
+      }
+    } catch {}
+
     throw new Error('無法獲取市場分析資料，請稍後再試');
   }
 }
