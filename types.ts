@@ -120,3 +120,49 @@ export const DEFAULT_FILTER_SETTINGS: FilterSettings = {
   riskLevel: 'moderate',
   capital: 10000,
 };
+
+/**
+ * 市場分析資料結構
+ * 包含美股表現、聯準會政策、台股展望三大因素
+ */
+export interface MarketAnalysis {
+  // 美股表現
+  usMarket: {
+    summary: string;           // 整體摘要
+    dowJones: {
+      change: number;          // 漲跌幅 (%)
+      trend: 'up' | 'down' | 'flat';
+    };
+    nasdaq: {
+      change: number;
+      trend: 'up' | 'down' | 'flat';
+    };
+    sp500: {
+      change: number;
+      trend: 'up' | 'down' | 'flat';
+    };
+    keyFactors: string[];      // 主要影響因素
+  };
+
+  // 聯準會政策
+  fedPolicy: {
+    summary: string;           // 政策摘要
+    rateOutlook: 'hawkish' | 'dovish' | 'neutral';  // 利率展望
+    nextMeeting: string;       // 下次會議日期
+    marketImpact: string;      // 對市場影響
+  };
+
+  // 台股展望
+  twMarketOutlook: {
+    summary: string;           // 台股展望摘要
+    openingExpectation: 'gap_up' | 'gap_down' | 'flat';  // 開盤預期
+    hotSectors: string[];      // 熱門產業
+    keyPoints: string[];       // 重點關注
+  };
+
+  // 分析時間
+  analysisTime: string;
+
+  // 資料來源
+  sources: string[];
+}

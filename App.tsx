@@ -2,9 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { getTradingRecommendations, getStockNews, getHistoricalStockData } from './services/geminiService';
 import { fetchInitialLivePrices, updateLivePrices } from './services/stockDataService';
+import { getMarketAnalysis } from './services/marketAnalysisService';
 import { assessRisk } from './services/riskManagement';
 import { performTechnicalAnalysis } from './services/technicalIndicators';
-import type { StockRecommendation, GroundingChunk, FilterSettings } from './types';
+import type { StockRecommendation, GroundingChunk, FilterSettings, MarketAnalysis } from './types';
 import { DEFAULT_FILTER_SETTINGS } from './types';
 import { LoadingIndicator } from './components/LoadingIndicator';
 import { StockTable } from './components/StockTable';
@@ -14,6 +15,7 @@ import { GroundingSources } from './components/GroundingSources';
 import { RefreshIcon } from './components/icons/RefreshIcon';
 import { EnhancedDisclaimer, RiskConfirmationModal } from './components/EnhancedDisclaimer';
 import { FilterSettingsPanel, loadFilterSettings } from './components/FilterSettingsPanel';
+import { MarketAnalysisPanel } from './components/MarketAnalysisPanel';
 
 const App: React.FC = () => {
   const [recommendations, setRecommendations] = useState<StockRecommendation[]>([]);
@@ -27,6 +29,11 @@ const App: React.FC = () => {
   // 篩選設定狀態
   const [filterSettings, setFilterSettings] = useState<FilterSettings>(DEFAULT_FILTER_SETTINGS);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState<boolean>(false);
+
+  // 市場分析狀態
+  const [marketAnalysis, setMarketAnalysis] = useState<MarketAnalysis | null>(null);
+  const [isMarketAnalysisLoading, setIsMarketAnalysisLoading] = useState<boolean>(false);
+  const [marketAnalysisError, setMarketAnalysisError] = useState<string | null>(null);
 
   // 初始化：載入用戶儲存的篩選設定和風險聲明狀態
   useEffect(() => {
@@ -42,6 +49,20 @@ const App: React.FC = () => {
       setShowRiskModal(true);
     }
   }, []);
+
+  // 獲取市場分析的函數
+  const fetchMarketAnalysis = async () => {
+    setIsMarketAnalysisLoading(true);
+    setMarketAnalysisError(null);
+    try {
+      const analysis = await getMarketAnalysis();
+      setMarketAnalysis(analysis);
+    } catch (err) {
+      setMarketAnalysisError(err instanceof Error ? err.message : '無法獲取市場分析');
+    } finally {
+      setIsMarketAnalysisLoading(false);
+    }
+  };
 
   const handleRiskConfirm = () => {
     localStorage.setItem('riskAccepted', 'true');
@@ -60,6 +81,10 @@ const App: React.FC = () => {
     setRecommendations([]);
     setSources([]);
     setAnalysisTime(null);
+
+    // 同時獲取市場分析（背景執行，不阻塞主流程）
+    fetchMarketAnalysis();
+
     try {
       // 使用用戶的篩選設定來獲取 AI 推薦
       const { recommendations: result, sources: groundingSources } = await getTradingRecommendations(filterSettings);
@@ -330,6 +355,15 @@ const App: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* 市場分析面板 - 美股表現、聯準會政策、台股展望 */}
+              <MarketAnalysisPanel
+                analysis={marketAnalysis}
+                isLoading={isMarketAnalysisLoading}
+                error={marketAnalysisError}
+                onRefresh={fetchMarketAnalysis}
+              />
+
               <StockTable recommendations={recommendations} />
               <GroundingSources sources={sources} />
 
