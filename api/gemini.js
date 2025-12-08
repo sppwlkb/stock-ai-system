@@ -111,9 +111,14 @@ export default async function handler(req, res) {
 
     // 使用 fetch 直接調用 Gemini REST API
     // 使用 v1beta API（支持更多模型）
+    // 注意：URL 格式是 /v1beta/models/{model}:generateContent
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-    console.log('Calling Gemini API with model:', model);
+    console.log('=== Gemini API Debug ===');
+    console.log('Model:', model);
+    console.log('API URL:', apiUrl.replace(apiKey, 'API_KEY_HIDDEN'));
+    console.log('API Key exists:', !!apiKey);
+    console.log('API Key length:', apiKey ? apiKey.length : 0);
 
     const response = await fetch(apiUrl, {
       method: 'POST',
