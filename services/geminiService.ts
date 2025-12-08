@@ -106,14 +106,17 @@ const generateSystemInstruction = (settings: FilterSettings): string => {
     *   **絕對禁止**輸出任何 JSON 格式以外的文字。
     *   **絕對禁止**輸出 "很抱歉"、"找不到" 等解釋性文字。
     *   **絕對禁止**推薦股價超出 ${settings.priceRange.min}~${settings.priceRange.max} 範圍的股票。
+    *   **🚨 絕對禁止使用 "XX"、"OO"、"某某" 等遮蔽或替代文字**。
+    *   **🚨 必須回傳真實完整的股票名稱**（例如：台積電、鴻海、聯發科），不可使用 "XX科技"、"XX電子" 等模糊名稱。
+    *   **🚨 必須回傳真實完整的 4 位數股票代碼**（例如：2330、2317、2454），不可使用 "23XX"、"61XX" 等模糊代碼。
     *   直接回傳 JSON Array，包含 **${settings.stockCount} 支** 股票。
 
-JSON 結構範例 (務必回傳 currentPrice，且必須在價格範圍內)：
+JSON 結構範例 (務必回傳真實股票名稱和代碼)：
 \`\`\`json
 [
   {
-    "stockName": "string",
-    "ticker": "string (4位數字)",
+    "stockName": "真實股票名稱（例如：台積電、鴻海、聯發科）",
+    "ticker": "真實4位數字代碼（例如：2330、2317、2454）",
     "exchange": "TWSE" | "TPEX",
     "currentPrice": "number (必須在 ${settings.priceRange.min}~${settings.priceRange.max} 之間)",
     "entryPoint": "number",
