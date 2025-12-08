@@ -152,7 +152,15 @@ const App: React.FC = () => {
         }));
 
       } else {
-        setError("AI 分析模型目前未找到符合所有嚴格條件的標的，請稍後再試。");
+        // 沒有符合條件的股票，提示用戶調整篩選條件
+        setError(
+          `在股價 ${filterSettings.priceRange.min}~${filterSettings.priceRange.max} 元範圍內，` +
+          `未找到符合條件的強勢標的。\n\n` +
+          `建議：\n` +
+          `1. 擴大股價範圍（例如：5~100 元）\n` +
+          `2. 降低目標獲利率\n` +
+          `3. 稍後再試（市場可能處於整理期）`
+        );
       }
     } catch (err) {
       if (err instanceof Error) {

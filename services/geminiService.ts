@@ -59,25 +59,33 @@ const generateSystemInstruction = (settings: FilterSettings): string => {
 你的核心任務是解決使用者的痛點：**「理由太簡單，缺乏專業深度」。**
 使用者希望看到的是一份**機構等級的交易決策報告**，而不僅僅是散戶等級的建議。
 
-【用戶篩選條件】：
-- 股價範圍：${settings.priceRange.min} ~ ${settings.priceRange.max} 元
-- 推薦股票數量：${settings.stockCount} 支
-- 目標獲利率：${settings.targetProfitRate}%
-- 風險偏好：${RISK_LEVEL_LABELS[settings.riskLevel]}
-- 投資本金：${settings.capital.toLocaleString()} 元
+【⚠️ 嚴格遵守的用戶篩選條件 - 違反將被系統過濾】：
+- 📌 股價範圍：**嚴格限制在 ${settings.priceRange.min} ~ ${settings.priceRange.max} 元**
+  - ⛔ 股價低於 ${settings.priceRange.min} 元的股票：不符合條件，禁止推薦
+  - ⛔ 股價高於 ${settings.priceRange.max} 元的股票：不符合條件，禁止推薦
+  - ✅ 只推薦 currentPrice 在 ${settings.priceRange.min}~${settings.priceRange.max} 範圍內的股票
+- 📌 推薦股票數量：${settings.stockCount} 支
+- 📌 目標獲利率：${settings.targetProfitRate}%
+- 📌 風險偏好：${RISK_LEVEL_LABELS[settings.riskLevel]}
+- 📌 投資本金：${settings.capital.toLocaleString()} 元
 
 請遵守以下演算法規則 (System Protocol)：
 
 1.  **資料獲取 (Google Search)**：
+    *   請使用 Google Search 搜尋「台股 技術分析 強勢股」「台股 突破 ${settings.priceRange.min}~${settings.priceRange.max}元」等關鍵字。
     *   搜尋該股票的最新成交價。若無法取得「即時」盤中價，**請直接使用「昨日收盤價」或「最新查到的價格」作為基準**。
+    *   ⚠️ 確認股價在 ${settings.priceRange.min}~${settings.priceRange.max} 元範圍內才能推薦。
 
-2.  **選股濾網 (High Probability Setup)**：
-    *   **價格條件**：股價必須在 **${settings.priceRange.min} ~ ${settings.priceRange.max} 元** 之間。
+2.  **選股濾網 (High Probability Setup) - 嚴格執行**：
+    *   **🚨 價格硬性條件（必須遵守）**：
+        - currentPrice 必須 >= ${settings.priceRange.min} 元
+        - currentPrice 必須 <= ${settings.priceRange.max} 元
+        - entryPoint 也必須在此範圍內
+        - 不符合價格條件的股票將被系統自動過濾，請勿推薦
     *   **數量要求**：請推薦 **${settings.stockCount} 支** 符合條件的股票。
     *   **獲利門檻**：扣除手續費(0.6%)後，目標淨利必須顯著。尋找潛在漲幅 **> ${settings.targetProfitRate}%** 的標的。
     *   **損益比 (R:R)**：必須大於 **${riskRewardRatio}** (願意承擔 1 元風險，換取相應獲利)。
     *   **風險策略**：${riskStrategy}
-    *   **例外處理**：若無完美標的，請放寬標準推薦「相對強勢」的股票，並在理由中註明風險。**絕對禁止**不回答或回傳錯誤。
 
 3.  **進出場策略 (Precision Execution)**：
     *   **Entry (進場)**：尋找回測支撐 (Pullback)、突破盤整區 (Breakout) 或 均線糾結發散點。
@@ -86,6 +94,7 @@ const generateSystemInstruction = (settings: FilterSettings): string => {
 
 4.  **資金與輸出格式**：
     *   'ticker': 4位數字代碼。
+    *   'currentPrice': **必須是真實查到的股價，且必須在 ${settings.priceRange.min}~${settings.priceRange.max} 範圍內**。
     *   'sharesToBuy': 以 **新台幣 ${settings.capital.toLocaleString()} 元** 本金計算。公式：floor(${settings.capital} / entryPoint)。允許零股。
     *   'reason': **必須是「機構級量化交易報告」，字數 200 字以上，嚴禁廢話。必須包含以下四個段落 (請使用換行符號排版)**：
         *   **【演算法訊號】**：明確指出觸發了什麼策略 (例如：VWAP 均價回歸、ORB 開盤區間突破、VCP 波動率收縮、主力吸籌完成)。
@@ -96,16 +105,17 @@ const generateSystemInstruction = (settings: FilterSettings): string => {
 5.  **格式要求 (CRITICAL)**：
     *   **絕對禁止**輸出任何 JSON 格式以外的文字。
     *   **絕對禁止**輸出 "很抱歉"、"找不到" 等解釋性文字。
+    *   **絕對禁止**推薦股價超出 ${settings.priceRange.min}~${settings.priceRange.max} 範圍的股票。
     *   直接回傳 JSON Array，包含 **${settings.stockCount} 支** 股票。
 
-JSON 結構範例 (務必回傳 currentPrice)：
+JSON 結構範例 (務必回傳 currentPrice，且必須在價格範圍內)：
 \`\`\`json
 [
   {
     "stockName": "string",
-    "ticker": "string",
+    "ticker": "string (4位數字)",
     "exchange": "TWSE" | "TPEX",
-    "currentPrice": "number",
+    "currentPrice": "number (必須在 ${settings.priceRange.min}~${settings.priceRange.max} 之間)",
     "entryPoint": "number",
     "exitPoint": "number",
     "profitPoints": "number",
@@ -208,7 +218,7 @@ export const getTradingRecommendations = async (
     }
     
     // Sanitize data and add missing properties to match the StockRecommendation type.
-    const recommendations: StockRecommendation[] = parsedJson.map(rec => ({
+    const allRecommendations: StockRecommendation[] = parsedJson.map(rec => ({
       stockName: rec.stockName || 'N/A',
       ticker: rec.ticker || '0000',
       exchange: rec.exchange || 'TWSE',
@@ -220,13 +230,46 @@ export const getTradingRecommendations = async (
       reason: rec.reason || 'No reason provided.',
       stopLoss: rec.stopLoss || 0,
       // Use the currentPrice returned by AI (found via search), fallback to entryPoint
-      currentPrice: rec.currentPrice || rec.entryPoint || 0, 
+      currentPrice: rec.currentPrice || rec.entryPoint || 0,
       historicalData: [], // Default to empty array
     }));
 
+    // ✅ 驗證邏輯：過濾不符合用戶篩選條件的股票
+    const { min: minPrice, max: maxPrice } = filterSettings.priceRange;
+    const filteredRecommendations = allRecommendations.filter(rec => {
+      const price = rec.currentPrice;
+
+      // 檢查股價是否在用戶設定的範圍內
+      const isPriceValid = price >= minPrice && price <= maxPrice;
+
+      if (!isPriceValid) {
+        console.warn(
+          `⚠️ 過濾掉不符合價格範圍的股票: ${rec.stockName} (${rec.ticker})，` +
+          `股價 ${price} 元不在 ${minPrice}~${maxPrice} 範圍內`
+        );
+      }
+
+      return isPriceValid;
+    });
+
+    // 如果過濾後沒有符合條件的股票，給出警告
+    if (filteredRecommendations.length === 0 && allRecommendations.length > 0) {
+      console.warn(
+        `⚠️ AI 推薦的 ${allRecommendations.length} 支股票全部不符合價格範圍 ${minPrice}~${maxPrice} 元，` +
+        `已被過濾。請調整篩選條件或稍後再試。`
+      );
+    }
+
+    // 記錄過濾結果
+    if (filteredRecommendations.length < allRecommendations.length) {
+      console.log(
+        `📊 篩選結果：AI 推薦 ${allRecommendations.length} 支 → 符合條件 ${filteredRecommendations.length} 支`
+      );
+    }
+
     const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks as GroundingChunk[] || [];
 
-    return { recommendations, sources };
+    return { recommendations: filteredRecommendations, sources };
 
   } catch (error: any) {
     console.error("Error calling Gemini API:", error);
