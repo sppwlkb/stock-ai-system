@@ -31,7 +31,7 @@ interface TWSeHistoricalResponse {
 }
 
 /**
- * 獲取即時股價
+ * 獲取即時股價（使用後端 API 代理避免 CORS 問題）
  * @param ticker 股票代號（例如：2330）
  * @param exchange 交易所（TWSE 或 TPEX）
  * @returns 即時股價，若失敗返回 null
@@ -42,8 +42,12 @@ export const fetchRealtimePrice = async (
 ): Promise<number | null> => {
   try {
     const exchangeCode = exchange === 'TWSE' ? 'tse' : 'otc';
-    const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${exchangeCode}_${ticker}.tw&json=1&delay=0`;
-    
+
+    // 使用後端 API 代理來獲取股價（避免 CORS 問題）
+    const url = `/api/stock-price?ticker=${ticker}&exchange=${exchangeCode}`;
+
+    console.log(`正在獲取 ${ticker} 即時股價...`);
+
     const response = await fetch(url, {
       headers: {
         'Accept': 'application/json',
@@ -51,27 +55,19 @@ export const fetchRealtimePrice = async (
     });
 
     if (!response.ok) {
-      console.warn(`TWSE API 回應錯誤: ${response.status}`);
+      console.warn(`股價 API 回應錯誤: ${response.status}`);
       return null;
     }
 
-    const data: TWSeRealtimeResponse = await response.json();
-    
-    if (data.rtcode !== '0000' || !data.msgArray || data.msgArray.length === 0) {
-      console.warn(`無法取得 ${ticker} 的即時股價`);
+    const data = await response.json();
+
+    if (!data.success || !data.price) {
+      console.warn(`無法取得 ${ticker} 的即時股價:`, data.error);
       return null;
     }
 
-    const stockData = data.msgArray[0];
-    const price = parseFloat(stockData.z);
-    
-    if (isNaN(price) || price <= 0) {
-      // 如果沒有最新成交價，使用昨收價
-      const yesterdayPrice = parseFloat(stockData.y);
-      return isNaN(yesterdayPrice) ? null : yesterdayPrice;
-    }
-
-    return price;
+    console.log(`✅ ${ticker} 即時股價: ${data.price} (${data.name})`);
+    return data.price;
   } catch (error) {
     console.error(`獲取 ${ticker} 即時股價失敗:`, error);
     return null;
