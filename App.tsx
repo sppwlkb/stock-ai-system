@@ -92,10 +92,43 @@ const App: React.FC = () => {
       if (result && result.length > 0) {
         // First, get the initial "live" prices for the recommendations
         const initialPrices = await fetchInitialLivePrices(result);
-        const recommendationsWithPrice = result.map(rec => ({
-            ...rec,
-            currentPrice: initialPrices.get(rec.ticker) || rec.entryPoint,
-        }));
+
+        // 修正不合理的進場價：entryPoint 必須接近 currentPrice（±5% 以內）
+        const recommendationsWithPrice = result.map(rec => {
+            const realPrice = initialPrices.get(rec.ticker) || rec.currentPrice || rec.entryPoint;
+            let correctedEntryPoint = rec.entryPoint;
+            let correctedExitPoint = rec.exitPoint;
+            let correctedStopLoss = rec.stopLoss;
+
+            // 檢查 entryPoint 與真實股價的差距
+            const entryDiff = Math.abs(rec.entryPoint - realPrice) / realPrice;
+            if (entryDiff > 0.05) {
+              // 差距超過 5%，修正為真實股價的 98%（略低於現價的買點）
+              console.warn(`⚠️ 修正 ${rec.stockName}(${rec.ticker}) 進場價: ${rec.entryPoint} → ${(realPrice * 0.98).toFixed(2)} (原差距 ${(entryDiff * 100).toFixed(1)}%)`);
+              correctedEntryPoint = parseFloat((realPrice * 0.98).toFixed(2));
+
+              // 同時修正出場價和止損價（維持相對比例）
+              const targetProfit = filterSettings.targetProfitRate / 100;
+              correctedExitPoint = parseFloat((correctedEntryPoint * (1 + targetProfit)).toFixed(2));
+              correctedStopLoss = parseFloat((correctedEntryPoint * 0.95).toFixed(2)); // 止損設在 -5%
+            }
+
+            // 重新計算購買股數和預估獲利
+            const correctedSharesToBuy = Math.floor(filterSettings.capital / correctedEntryPoint);
+            const correctedProfitPoints = correctedExitPoint - correctedEntryPoint;
+            const correctedProfitTWD = Math.round(correctedSharesToBuy * correctedProfitPoints);
+
+            return {
+              ...rec,
+              currentPrice: realPrice,
+              entryPoint: correctedEntryPoint,
+              exitPoint: correctedExitPoint,
+              stopLoss: correctedStopLoss,
+              sharesToBuy: correctedSharesToBuy,
+              profitPoints: correctedProfitPoints,
+              profitTWD: correctedProfitTWD,
+            };
+        });
         
         setRecommendations(recommendationsWithPrice);
         setSources(groundingSources);

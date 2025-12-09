@@ -87,14 +87,21 @@ const generateSystemInstruction = (settings: FilterSettings): string => {
     *   **損益比 (R:R)**：必須大於 **${riskRewardRatio}** (願意承擔 1 元風險，換取相應獲利)。
     *   **風險策略**：${riskStrategy}
 
-3.  **進出場策略 (Precision Execution)**：
-    *   **Entry (進場)**：尋找回測支撐 (Pullback)、突破盤整區 (Breakout) 或 均線糾結發散點。
+3.  **進出場策略 (Precision Execution) - 🚨 極重要規則**：
+    *   **Entry (進場點) - 必須是「今日可執行的買入價位」**：
+        - ⚠️ entryPoint 必須接近 currentPrice（差距在 ±3% 以內）
+        - ⚠️ 例如：currentPrice = 50 元，則 entryPoint 應在 48.5 ~ 51.5 元之間
+        - ⚠️ entryPoint 不是「歷史低點」或「理想中的支撐位」
+        - ⚠️ entryPoint 是投資人「今天就可以下單買到」的價格
+        - ❌ 錯誤範例：currentPrice = 84 元，entryPoint = 45 元（差距 46%，這是錯的！）
+        - ✅ 正確範例：currentPrice = 84 元，entryPoint = 82 元（差距 2%，合理）
     *   **Exit (出場)**：設定在日線壓力區 (Supply Zone)、Fibonacci 擴展位或整數關卡。
-    *   **Stop Loss (止損)**：設定在關鍵K線低點或支撐位下方 1-2 檔。
+    *   **Stop Loss (止損)**：設定在 entryPoint 下方 2~5%。
 
 4.  **資金與輸出格式**：
     *   'ticker': 4位數字代碼。
-    *   'currentPrice': **必須是真實查到的股價，且必須在 ${settings.priceRange.min}~${settings.priceRange.max} 範圍內**。
+    *   'currentPrice': **必須是真實查到的最新股價**。
+    *   'entryPoint': **🚨 必須在 currentPrice 的 ±3% 範圍內，這是今天可執行的買入價**。
     *   'sharesToBuy': 以 **新台幣 ${settings.capital.toLocaleString()} 元** 本金計算。公式：floor(${settings.capital} / entryPoint)。允許零股。
     *   'reason': **必須是「機構級量化交易報告」，字數 200 字以上，嚴禁廢話。必須包含以下四個段落 (請使用換行符號排版)**：
         *   **【演算法訊號】**：明確指出觸發了什麼策略 (例如：VWAP 均價回歸、ORB 開盤區間突破、VCP 波動率收縮、主力吸籌完成)。
@@ -111,24 +118,25 @@ const generateSystemInstruction = (settings: FilterSettings): string => {
     *   **🚨 必須回傳真實完整的 4 位數股票代碼**（例如：2330、2317、2454），不可使用 "23XX"、"61XX" 等模糊代碼。
     *   直接回傳 JSON Array，包含 **${settings.stockCount} 支** 股票。
 
-JSON 結構範例 (務必回傳真實股票名稱和代碼)：
+JSON 結構範例 (注意 entryPoint 必須接近 currentPrice)：
 \`\`\`json
 [
   {
     "stockName": "真實股票名稱（例如：台積電、鴻海、聯發科）",
     "ticker": "真實4位數字代碼（例如：2330、2317、2454）",
     "exchange": "TWSE" | "TPEX",
-    "currentPrice": "number (必須在 ${settings.priceRange.min}~${settings.priceRange.max} 之間)",
-    "entryPoint": "number",
-    "exitPoint": "number",
-    "profitPoints": "number",
-    "sharesToBuy": "number",
-    "profitTWD": "number",
-    "reason": "string",
-    "stopLoss": "number"
+    "currentPrice": 50.00,
+    "entryPoint": 49.00,
+    "exitPoint": 55.00,
+    "profitPoints": 6.00,
+    "sharesToBuy": 204,
+    "profitTWD": 1224,
+    "reason": "【演算法訊號】...",
+    "stopLoss": 47.50
   }
 ]
 \`\`\`
+**⚠️ 注意：上例中 entryPoint(49) 與 currentPrice(50) 差距僅 2%，這才是正確的！**
 `;
 };
 
