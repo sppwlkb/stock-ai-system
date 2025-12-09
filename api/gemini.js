@@ -82,13 +82,14 @@ export default async function handler(req, res) {
     }
 
     // 從請求中獲取參數
-    // 使用 gemini-2.5-flash（穩定且免費的模型）
-    let { prompt, model = 'gemini-2.5-flash', temperature = 1.0 } = req.body;
+    // 使用 gemini-2.5-flash-lite（最省配額的免費模型）
+    let { prompt, model = 'gemini-2.5-flash-lite', temperature = 1.0 } = req.body;
 
     // 模型名稱映射（修正錯誤的模型名稱）
     const modelMapping = {
-      'gemini-flash-latest': 'gemini-2.5-flash',
-      'gemini-flash': 'gemini-2.5-flash',
+      'gemini-flash-latest': 'gemini-2.5-flash-lite',
+      'gemini-flash': 'gemini-2.5-flash-lite',
+      'gemini-2.5-flash': 'gemini-2.5-flash-lite',
       'gemini-2.0-flash': 'gemini-2.5-flash',
       'gemini-1.5-flash': 'gemini-2.5-flash',
       'gemini-pro': 'gemini-2.5-pro',

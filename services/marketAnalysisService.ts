@@ -121,7 +121,7 @@ async function callMarketAnalysisAPI(): Promise<any> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       prompt: dynamicPrompt,
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.5-flash-lite',  // 使用最省配額的免費 Lite 模型
       useSearch: true  // 啟用 Google Search
     }),
   });
