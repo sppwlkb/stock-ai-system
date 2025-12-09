@@ -176,7 +176,35 @@ const StockCard: React.FC<{ stock: StockRecommendation }> = memo(({ stock }) => 
             </div>
           )}
 
-          <h4 className="font-bold text-blue-300 mb-2 mt-4">操作理由</h4>
+          {/* 交易計畫區塊 - 使用 JSON 欄位的正確數值 */}
+          <div className="mb-4 p-3 bg-emerald-900/30 rounded-md border border-emerald-600">
+            <h4 className="font-bold text-emerald-300 mb-3">📋 交易計畫</h4>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-gray-400 text-xs">進場價位</span>
+                <p className="font-mono text-white font-semibold">{stock.entryPoint.toFixed(2)} 元</p>
+              </div>
+              <div>
+                <span className="text-gray-400 text-xs">目標價位</span>
+                <p className="font-mono text-yellow-400 font-semibold">{stock.exitPoint.toFixed(2)} 元 (+{((stock.exitPoint - stock.entryPoint) / stock.entryPoint * 100).toFixed(1)}%)</p>
+              </div>
+              <div>
+                <span className="text-gray-400 text-xs">停損價位</span>
+                <p className="font-mono text-red-400 font-semibold">{stock.stopLoss.toFixed(2)} 元 ({((stock.stopLoss - stock.entryPoint) / stock.entryPoint * 100).toFixed(1)}%)</p>
+              </div>
+              <div>
+                <span className="text-gray-400 text-xs">風險報酬比</span>
+                <p className="font-mono text-cyan-400 font-semibold">
+                  1:{((stock.exitPoint - stock.entryPoint) / (stock.entryPoint - stock.stopLoss)).toFixed(2)}
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-emerald-700 text-xs text-emerald-200">
+              💡 建議買入 <span className="font-mono font-bold">{stock.sharesToBuy.toLocaleString()}</span> 股，預估獲利 <span className="font-mono font-bold text-green-400">{stock.profitTWD.toLocaleString()}</span> 元
+            </div>
+          </div>
+
+          <h4 className="font-bold text-blue-300 mb-2">📊 AI 分析理由</h4>
           <p className="text-gray-400 whitespace-pre-wrap text-xs leading-relaxed">{stock.reason}</p>
           
           {isExpanded && (
@@ -261,8 +289,36 @@ const StockRow = memo(({ stock, isExpanded, onToggle }: { stock: StockRecommenda
                         <h4 className="font-bold text-blue-300 mb-4">{stock.stockName} ({stock.ticker}) - 詳細分析</h4>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                             <div className="space-y-4">
+                                {/* 交易計畫區塊 - 使用 JSON 欄位的正確數值 */}
+                                <div className="p-4 bg-emerald-900/30 rounded-md border border-emerald-600">
+                                    <h5 className="font-bold text-emerald-300 mb-3">📋 交易計畫</h5>
+                                    <div className="grid grid-cols-4 gap-4 text-sm">
+                                        <div>
+                                            <span className="text-gray-400 text-xs">進場價位</span>
+                                            <p className="font-mono text-white font-semibold">{stock.entryPoint.toFixed(2)} 元</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-400 text-xs">目標價位</span>
+                                            <p className="font-mono text-yellow-400 font-semibold">{stock.exitPoint.toFixed(2)} 元 (+{((stock.exitPoint - stock.entryPoint) / stock.entryPoint * 100).toFixed(1)}%)</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-400 text-xs">停損價位</span>
+                                            <p className="font-mono text-red-400 font-semibold">{stock.stopLoss.toFixed(2)} 元 ({((stock.stopLoss - stock.entryPoint) / stock.entryPoint * 100).toFixed(1)}%)</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-400 text-xs">風險報酬比</span>
+                                            <p className="font-mono text-cyan-400 font-semibold">
+                                                1:{((stock.exitPoint - stock.entryPoint) / Math.max(stock.entryPoint - stock.stopLoss, 0.01)).toFixed(2)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="mt-3 pt-3 border-t border-emerald-700 text-sm text-emerald-200">
+                                        💡 建議買入 <span className="font-mono font-bold">{stock.sharesToBuy.toLocaleString()}</span> 股，預估獲利 <span className="font-mono font-bold text-green-400">{stock.profitTWD.toLocaleString()}</span> 元
+                                    </div>
+                                </div>
+
                                 <div>
-                                    <h5 className="font-semibold text-gray-300 mb-2">操作理由</h5>
+                                    <h5 className="font-semibold text-gray-300 mb-2">📊 AI 分析理由</h5>
                                     <p className="text-gray-400 whitespace-pre-wrap text-sm leading-relaxed">{stock.reason}</p>
                                 </div>
 
