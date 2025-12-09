@@ -18,60 +18,109 @@ interface CachedData {
 }
 
 /**
- * 市場分析 Prompt
+ * 生成市場分析 Prompt（包含當前日期）
  */
-const MARKET_ANALYSIS_PROMPT = `你是一位專業的全球金融市場分析師。請分析以下三個面向，並以 JSON 格式回傳：
+function generateMarketAnalysisPrompt(): string {
+  // 獲取當前日期
+  const today = new Date();
+  const todayStr = today.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
 
-1. **美股表現**：分析昨日美股三大指數（道瓊工業指數、那斯達克指數、S&P500 指數）的漲跌幅和主要影響因素。
+  // 計算昨日日期
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
 
-2. **聯準會政策**：分析聯準會最新的貨幣政策動向、利率展望（鷹派/鴿派/中性），以及對市場的影響。
+  // 判斷今天是星期幾（處理週一情況）
+  const dayOfWeek = today.getDay();
+  let usMarketDate = yesterdayStr;
+  if (dayOfWeek === 1) {
+    // 週一，美股數據用上週五
+    const friday = new Date(today);
+    friday.setDate(friday.getDate() - 3);
+    usMarketDate = friday.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+  } else if (dayOfWeek === 0) {
+    // 週日，美股數據用上週五
+    const friday = new Date(today);
+    friday.setDate(friday.getDate() - 2);
+    usMarketDate = friday.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+  }
 
-3. **台股展望**：根據美股表現和全球情勢，分析今日台股的開盤預期、熱門產業和投資機會。
+  return `你是一位專業的全球金融市場分析師。
 
-請透過 Google Search 獲取最新資訊，並以下列 JSON 格式回傳（直接回傳 JSON，不要加任何說明文字）：
+📅 **重要時間資訊**：
+- 今日日期：${todayStr}
+- 昨日日期：${yesterdayStr}
+- 美股最新收盤日期：${usMarketDate}
+
+請分析以下三個面向，必須使用 **Google Search** 搜尋最新資料：
+
+1. **美股表現**（${usMarketDate} 收盤數據）：
+   - 搜尋關鍵字：「美股 ${usMarketDate} 收盤」「道瓊指數 今日」「S&P500 最新」
+   - 必須提供道瓊、那斯達克、S&P500 的具體漲跌幅
+   - 說明主要漲跌原因
+
+2. **聯準會政策**（最近 7 天內的資訊）：
+   - 搜尋關鍵字：「聯準會 利率 最新」「Fed 降息 2024」
+   - 必須是 7 天內的官方聲明或新聞
+   - 分析利率展望和市場影響
+
+3. **台股展望**（基於 ${todayStr} 盤前資訊）：
+   - 搜尋關鍵字：「台股 ${todayStr} 盤前」「台股 今日 展望」
+   - 根據美股表現預測今日台股走勢
+   - 列出熱門產業和關注重點
+
+請以下列 JSON 格式回傳（直接回傳 JSON，不要加任何說明文字）：
 
 \`\`\`json
 {
   "usMarket": {
-    "summary": "簡短描述昨日美股整體表現（50字以內）",
+    "dataDate": "${usMarketDate}",
+    "summary": "美股整體表現描述（含具體指數點位變化）",
     "dowJones": { "change": 0.8, "trend": "up" },
     "nasdaq": { "change": 1.5, "trend": "up" },
     "sp500": { "change": 1.2, "trend": "up" },
-    "keyFactors": ["科技股帶動", "半導體類股強勢"]
+    "keyFactors": ["主要漲跌原因1", "主要漲跌原因2"]
   },
   "fedPolicy": {
-    "summary": "聯準會政策摘要（80字以內）",
+    "dataDate": "最近政策發布日期（YYYY-MM-DD）",
+    "summary": "聯準會政策摘要（含具體利率數據）",
     "rateOutlook": "dovish",
-    "nextMeeting": "2024-01-31",
-    "marketImpact": "有利於高成長型股票（30字以內）"
+    "nextMeeting": "YYYY-MM-DD",
+    "marketImpact": "對市場的具體影響"
   },
   "twMarketOutlook": {
-    "summary": "台股展望摘要（80字以內）",
+    "dataDate": "${todayStr}",
+    "summary": "台股展望摘要（含具體預測）",
     "openingExpectation": "gap_up",
-    "hotSectors": ["電子股", "半導體", "AI概念股"],
-    "keyPoints": ["籌碼集中且技術面轉強的中小型股更容易受到資金追捧"]
+    "hotSectors": ["熱門產業1", "熱門產業2", "熱門產業3"],
+    "keyPoints": ["今日關注重點1", "今日關注重點2"]
   }
 }
 \`\`\`
 
-重要規則：
-1. 數據必須是最新的（今日或昨日）
-2. 漲跌幅使用百分比數值（例如：1.5 表示 +1.5%，-0.8 表示 -0.8%）
-3. trend 只能是 "up"、"down" 或 "flat"
-4. rateOutlook 只能是 "hawkish"、"dovish" 或 "neutral"
-5. openingExpectation 只能是 "gap_up"、"gap_down" 或 "flat"
-6. 直接回傳 JSON，不要加任何說明文字
+⚠️ 重要規則：
+1. **必須**透過 Google Search 獲取最新資料，不可使用過時資訊
+2. **必須**在每個區塊回傳 dataDate（資料日期）
+3. 漲跌幅使用百分比數值（例如：1.5 表示 +1.5%）
+4. trend 只能是 "up"、"down" 或 "flat"
+5. rateOutlook 只能是 "hawkish"、"dovish" 或 "neutral"
+6. openingExpectation 只能是 "gap_up"、"gap_down" 或 "flat"
+7. 直接回傳 JSON，不要加任何說明文字
 `;
+}
 
 /**
  * 呼叫後端 API 獲取市場分析
  */
 async function callMarketAnalysisAPI(): Promise<any> {
+  // 動態生成包含當前日期的 prompt
+  const dynamicPrompt = generateMarketAnalysisPrompt();
+
   const response = await fetch(BACKEND_API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      prompt: MARKET_ANALYSIS_PROMPT,
+      prompt: dynamicPrompt,
       model: 'gemini-2.5-flash',
       useSearch: true  // 啟用 Google Search
     }),

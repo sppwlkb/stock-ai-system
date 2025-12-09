@@ -41,6 +41,37 @@ const ChangeDisplay: React.FC<{ change: number; label: string }> = ({ change, la
   );
 };
 
+/**
+ * 檢查資料日期是否過時（超過 3 天）
+ */
+const isDataStale = (dateStr: string | undefined): boolean => {
+  if (!dateStr) return false;
+  try {
+    const dataDate = new Date(dateStr);
+    const today = new Date();
+    const diffDays = Math.floor((today.getTime() - dataDate.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays > 3;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * 資料日期標籤組件
+ */
+const DataDateLabel: React.FC<{ date: string | undefined; label: string }> = ({ date, label }) => {
+  if (!date) return null;
+  const stale = isDataStale(date);
+
+  return (
+    <span className={`text-xs ${stale ? 'text-yellow-400' : 'text-gray-500'}`}>
+      {stale && '⚠️ '}
+      {label}：{date}
+      {stale && ' (資料可能過時)'}
+    </span>
+  );
+};
+
 export const MarketAnalysisPanel: React.FC<MarketAnalysisPanelProps> = ({
   analysis,
   isLoading,
@@ -103,9 +134,12 @@ export const MarketAnalysisPanel: React.FC<MarketAnalysisPanelProps> = ({
       <div className="space-y-4">
         {/* 美股表現 */}
         <div className="bg-blue-900/30 border border-blue-600/50 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-lg">📊</span>
-            <h3 className="font-bold text-blue-400">美股表現</h3>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📊</span>
+              <h3 className="font-bold text-blue-400">美股表現</h3>
+            </div>
+            <DataDateLabel date={(analysis.usMarket as any).dataDate} label="收盤日期" />
           </div>
           <p className="text-gray-300 text-sm mb-2">{analysis.usMarket.summary}</p>
           <div className="flex flex-wrap gap-3 text-xs">
@@ -126,9 +160,12 @@ export const MarketAnalysisPanel: React.FC<MarketAnalysisPanelProps> = ({
 
         {/* 聯準會政策 */}
         <div className="bg-purple-900/30 border border-purple-600/50 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-lg">🏛️</span>
-            <h3 className="font-bold text-purple-400">聯準會政策</h3>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🏛️</span>
+              <h3 className="font-bold text-purple-400">聯準會政策</h3>
+            </div>
+            <DataDateLabel date={(analysis.fedPolicy as any).dataDate} label="政策日期" />
           </div>
           <p className="text-gray-300 text-sm">{analysis.fedPolicy.summary}</p>
           {analysis.fedPolicy.marketImpact && (
@@ -140,9 +177,12 @@ export const MarketAnalysisPanel: React.FC<MarketAnalysisPanelProps> = ({
 
         {/* 台股展望 */}
         <div className="bg-teal-900/30 border border-teal-600/50 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-lg">🇹🇼</span>
-            <h3 className="font-bold text-teal-400">台股展望</h3>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🇹🇼</span>
+              <h3 className="font-bold text-teal-400">台股展望</h3>
+            </div>
+            <DataDateLabel date={(analysis.twMarketOutlook as any).dataDate} label="分析日期" />
           </div>
           <p className="text-gray-300 text-sm">{analysis.twMarketOutlook.summary}</p>
           {analysis.twMarketOutlook.hotSectors.length > 0 && (
