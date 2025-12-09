@@ -110,7 +110,7 @@ export const fetchBatchRealtimePrices = async (
 };
 
 /**
- * 獲取歷史股價數據（使用 TWSE OpenAPI）
+ * 獲取歷史股價數據（使用後端 API 代理避免 CORS 問題）
  * @param ticker 股票代號
  * @param days 天數（預設90天）
  * @returns 歷史K線數據陣列
@@ -120,44 +120,46 @@ export const fetchHistoricalData = async (
   days: number = 90
 ): Promise<HistoricalDataPoint[]> => {
   try {
-    // 計算日期範圍
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-    
-    const formatDate = (date: Date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}${month}${day}`;
-    };
+    // 計算日期
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const dateStr = `${year}${month}01`;
 
-    // 使用 TWSE OpenAPI
-    const url = `https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY?stockNo=${ticker}&date=${formatDate(endDate)}`;
-    
-    const response = await fetch(url);
-    
+    // 使用後端 API 代理（避免 CORS 問題）
+    const url = `/api/stock-history?ticker=${ticker}&date=${dateStr}`;
+
+    console.log(`正在獲取 ${ticker} 歷史數據...`);
+
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
     if (!response.ok) {
-      console.warn(`TWSE OpenAPI 回應錯誤: ${response.status}`);
+      console.warn(`歷史數據 API 回應錯誤: ${response.status}`);
       return [];
     }
 
-    const rawData = await response.json();
-    
-    if (!Array.isArray(rawData) || rawData.length === 0) {
-      console.warn(`無法取得 ${ticker} 的歷史數據`);
+    const result = await response.json();
+
+    if (!result.success || !result.data || result.data.length === 0) {
+      console.warn(`無法取得 ${ticker} 的歷史數據:`, result.error);
       return [];
     }
+
+    console.log(`✅ ${ticker} 歷史數據: ${result.count} 筆 (來源: ${result.source})`);
 
     // 轉換為標準格式
-    const historicalData: HistoricalDataPoint[] = rawData.map((item: any) => ({
-      date: item.Date || item.date || '',
-      open: parseFloat(item.Open || item.open || '0'),
-      high: parseFloat(item.High || item.high || '0'),
-      low: parseFloat(item.Low || item.low || '0'),
-      close: parseFloat(item.Close || item.close || '0'),
-      volume: parseInt(item.Volume || item.volume || '0', 10),
-    })).filter(item => item.close > 0); // 過濾無效數據
+    const historicalData: HistoricalDataPoint[] = result.data.map((item: any) => ({
+      date: item.date || '',
+      open: item.open || 0,
+      high: item.high || 0,
+      low: item.low || 0,
+      close: item.close || 0,
+      volume: item.volume || 0,
+    })).filter((item: HistoricalDataPoint) => item.close > 0);
 
     return historicalData.slice(-days); // 只取最近N天
   } catch (error) {
