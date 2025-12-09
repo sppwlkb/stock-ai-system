@@ -176,9 +176,9 @@ const StockCard: React.FC<{ stock: StockRecommendation }> = memo(({ stock }) => 
             </div>
           )}
 
-          {/* 交易計畫區塊 - 使用 JSON 欄位的正確數值 */}
+          {/* 交易計畫摘要 - 使用 JSON 欄位的正確數值 */}
           <div className="mb-4 p-3 bg-emerald-900/30 rounded-md border border-emerald-600">
-            <h4 className="font-bold text-emerald-300 mb-3">📋 交易計畫</h4>
+            <h4 className="font-bold text-emerald-300 mb-3">📋 交易計畫摘要（系統計算）</h4>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <span className="text-gray-400 text-xs">進場價位</span>
@@ -204,8 +204,10 @@ const StockCard: React.FC<{ stock: StockRecommendation }> = memo(({ stock }) => 
             </div>
           </div>
 
-          <h4 className="font-bold text-blue-300 mb-2">📊 AI 分析理由</h4>
-          <p className="text-gray-400 whitespace-pre-wrap text-xs leading-relaxed">{stock.reason}</p>
+          <h4 className="font-bold text-blue-300 mb-2">📊 AI 專業分析報告</h4>
+          <div className="text-gray-300 whitespace-pre-wrap text-sm leading-relaxed bg-gray-900/50 p-4 rounded-lg">
+            {stock.reason}
+          </div>
           
           {isExpanded && (
             <div className="my-4">
@@ -318,8 +320,10 @@ const StockRow = memo(({ stock, isExpanded, onToggle }: { stock: StockRecommenda
                                 </div>
 
                                 <div>
-                                    <h5 className="font-semibold text-gray-300 mb-2">📊 AI 分析理由</h5>
-                                    <p className="text-gray-400 whitespace-pre-wrap text-sm leading-relaxed">{stock.reason}</p>
+                                    <h5 className="font-semibold text-gray-300 mb-2">📊 AI 專業分析報告</h5>
+                                    <div className="text-gray-300 whitespace-pre-wrap text-sm leading-relaxed bg-gray-900/50 p-4 rounded-lg">
+                                        {stock.reason}
+                                    </div>
                                 </div>
 
                                 <div className="pt-4 border-t border-gray-700">

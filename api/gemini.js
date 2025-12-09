@@ -137,7 +137,7 @@ export default async function handler(req, res) {
           temperature: temperature,
           topK: 40,
           topP: 0.95,
-          maxOutputTokens: 8192,
+          maxOutputTokens: 65536,  // 增加到 65K tokens 支援長篇分析報告
         }
       })
     });
