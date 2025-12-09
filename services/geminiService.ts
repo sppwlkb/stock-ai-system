@@ -14,7 +14,7 @@ async function callBackendAPI(prompt: string, useGoogleSearch: boolean = false):
     },
     body: JSON.stringify({
       prompt: prompt,
-      model: 'gemini-2.5-flash-lite',  // 使用最省配額的免費 Lite 模型
+      model: 'gemini-2.0-flash',  // 使用穩定的免費模型
       temperature: useGoogleSearch ? 0.4 : 1.0,
       useGoogleSearch: useGoogleSearch
     })
