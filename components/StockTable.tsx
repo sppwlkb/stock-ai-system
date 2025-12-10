@@ -204,7 +204,7 @@ const StockCard: React.FC<{ stock: StockRecommendation }> = memo(({ stock }) => 
             </div>
           </div>
 
-          <h4 className="font-bold text-blue-300 mb-2">📊 AI 專業分析報告</h4>
+          <h4 className="font-bold text-blue-300 mb-2">📊 AI 選股分析理由</h4>
           <div className="text-gray-300 whitespace-pre-wrap text-sm leading-relaxed bg-gray-900/50 p-4 rounded-lg">
             {stock.reason}
           </div>
@@ -320,7 +320,7 @@ const StockRow = memo(({ stock, isExpanded, onToggle }: { stock: StockRecommenda
                                 </div>
 
                                 <div>
-                                    <h5 className="font-semibold text-gray-300 mb-2">📊 AI 專業分析報告</h5>
+                                    <h5 className="font-semibold text-gray-300 mb-2">📊 AI 選股分析理由</h5>
                                     <div className="text-gray-300 whitespace-pre-wrap text-sm leading-relaxed bg-gray-900/50 p-4 rounded-lg">
                                         {stock.reason}
                                     </div>
