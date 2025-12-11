@@ -4,7 +4,25 @@
  *
  * 注意：這個文件使用 fetch API 直接調用 Gemini REST API
  * 因為 @google/genai SDK 在 Vercel Edge Runtime 中可能不兼容
+ *
+ * 🆕 新增功能：
+ * - 多模型備援機制（自動切換到可用模型）
+ * - 重試機制（Exponential Backoff）
  */
+
+// 模型優先順序（當主模型過載時自動切換）
+const MODEL_PRIORITY = [
+  'gemini-2.5-flash',      // 主模型（最新、最強）
+  'gemini-2.0-flash',      // 備用 1（穩定）
+  'gemini-1.5-flash',      // 備用 2（最穩定）
+];
+
+// 重試配置
+const RETRY_CONFIG = {
+  maxRetries: 2,           // 每個模型最多重試 2 次
+  baseDelayMs: 1000,       // 基礎等待時間 1 秒
+  maxDelayMs: 4000,        // 最大等待時間 4 秒
+};
 
 // 速率限制配置（防止濫用）
 const RATE_LIMIT = {
@@ -82,29 +100,7 @@ export default async function handler(req, res) {
     }
 
     // 從請求中獲取參數
-    // 使用 gemini-2.0-flash（穩定的免費模型，支援 Google Search）
-    let { prompt, model = 'gemini-2.0-flash', temperature = 1.0 } = req.body;
-
-    // 模型名稱映射（修正錯誤的模型名稱）
-    const modelMapping = {
-      'gemini-flash-latest': 'gemini-2.0-flash',
-      'gemini-flash': 'gemini-2.0-flash',
-      'gemini-2.5-flash': 'gemini-2.0-flash',
-      'gemini-2.5-flash-lite': 'gemini-2.0-flash',
-      'gemini-2.0-flash': 'gemini-2.5-flash',
-      'gemini-1.5-flash': 'gemini-2.5-flash',
-      'gemini-pro': 'gemini-2.5-pro',
-    };
-
-    // 移除 models/ 前綴（如果有）
-    if (model.startsWith('models/')) {
-      model = model.replace('models/', '');
-    }
-
-    // 應用模型名稱映射
-    if (modelMapping[model]) {
-      model = modelMapping[model];
-    }
+    let { prompt, temperature = 1.0 } = req.body;
 
     if (!prompt) {
       return res.status(400).json({
@@ -113,72 +109,114 @@ export default async function handler(req, res) {
       });
     }
 
-    // 使用 fetch 直接調用 Gemini REST API
-    // 使用 v1beta API（支持更多模型）
-    // 注意：URL 格式是 /v1beta/models/{model}:generateContent
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    // 🆕 使用多模型備援機制
+    let lastError = null;
+    let usedModel = null;
 
-    console.log('=== Gemini API Debug ===');
-    console.log('Model:', model);
-    console.log('API URL:', apiUrl.replace(apiKey, 'API_KEY_HIDDEN'));
-    console.log('API Key exists:', !!apiKey);
-    console.log('API Key length:', apiKey ? apiKey.length : 0);
+    for (const model of MODEL_PRIORITY) {
+      console.log(`\n=== 嘗試模型: ${model} ===`);
 
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        generationConfig: {
-          temperature: temperature,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 65536,  // 增加到 65K tokens 支援長篇分析報告
+      // 對每個模型進行重試
+      for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
+        try {
+          if (attempt > 0) {
+            // 計算重試等待時間（Exponential Backoff）
+            const delay = Math.min(
+              RETRY_CONFIG.baseDelayMs * Math.pow(2, attempt - 1),
+              RETRY_CONFIG.maxDelayMs
+            );
+            console.log(`等待 ${delay}ms 後重試... (第 ${attempt} 次)`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+
+          const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+          console.log(`[${model}] 嘗試 ${attempt + 1}/${RETRY_CONFIG.maxRetries + 1}`);
+
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{
+                  text: prompt
+                }]
+              }],
+              generationConfig: {
+                temperature: temperature,
+                topK: 40,
+                topP: 0.95,
+                maxOutputTokens: 65536,
+              }
+            })
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            let errorData;
+            try {
+              errorData = JSON.parse(errorText);
+            } catch (e) {
+              errorData = { error: { message: errorText } };
+            }
+            const errorMessage = errorData.error?.message || errorText || `API Error: ${response.status}`;
+
+            // 檢查是否為可重試的錯誤
+            const isRetryable =
+              response.status === 503 ||
+              response.status === 429 ||
+              errorMessage.includes('overloaded') ||
+              errorMessage.includes('temporarily unavailable') ||
+              errorMessage.includes('quota');
+
+            if (isRetryable && attempt < RETRY_CONFIG.maxRetries) {
+              console.log(`[${model}] 可重試錯誤: ${errorMessage}`);
+              lastError = new Error(errorMessage);
+              continue; // 繼續重試
+            }
+
+            // 不可重試或已達最大重試次數，切換到下一個模型
+            console.log(`[${model}] 無法使用: ${errorMessage}`);
+            lastError = new Error(errorMessage);
+            break; // 跳出重試循環，嘗試下一個模型
+          }
+
+          // 成功！
+          const data = await response.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+          if (!text) {
+            throw new Error('無法從 API 回應中提取文本');
+          }
+
+          usedModel = model;
+          console.log(`✅ 成功使用模型: ${model}`);
+
+          return res.status(200).json({
+            success: true,
+            text: text,
+            model: usedModel,
+            fallbackUsed: model !== MODEL_PRIORITY[0],
+            timestamp: new Date().toISOString()
+          });
+
+        } catch (fetchError) {
+          console.error(`[${model}] 請求錯誤:`, fetchError.message);
+          lastError = fetchError;
+
+          if (attempt < RETRY_CONFIG.maxRetries) {
+            continue; // 繼續重試
+          }
+          break; // 嘗試下一個模型
         }
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Gemini API Error Response:', errorText);
-      console.error('Status:', response.status);
-
-      let errorData;
-      try {
-        errorData = JSON.parse(errorText);
-      } catch (e) {
-        errorData = { error: { message: errorText } };
       }
-
-      // 詳細的錯誤訊息
-      const errorMessage = errorData.error?.message || errorText || `API Error: ${response.status}`;
-      console.error('Parsed Error Message:', errorMessage);
-
-      throw new Error(errorMessage);
     }
 
-    const data = await response.json();
-
-    // 提取文本
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!text) {
-      throw new Error('無法從 API 回應中提取文本');
-    }
-
-    // 返回結果
-    return res.status(200).json({
-      success: true,
-      text: text,
-      model: model,
-      timestamp: new Date().toISOString()
-    });
+    // 所有模型都失敗
+    console.error('所有模型都無法使用:', lastError?.message);
+    throw lastError || new Error('所有 AI 模型都暫時無法使用');
 
   } catch (error) {
     console.error('Gemini API Error:', error);
@@ -210,11 +248,23 @@ export default async function handler(req, res) {
       });
     }
 
+    // 處理模型過載錯誤
+    if (error.message?.includes('overloaded') || error.message?.includes('503')) {
+      return res.status(503).json({
+        error: 'Service Unavailable',
+        message: '所有 AI 模型都暫時過載，請稍後再試（約 1-2 分鐘）',
+        details: error.message,
+        modelsAttempted: MODEL_PRIORITY,
+        timestamp: new Date().toISOString()
+      });
+    }
+
     // 返回詳細的錯誤訊息（用於調試）
     return res.status(500).json({
       error: 'Internal Server Error',
       message: error.message || '調用 AI 服務時發生錯誤',
       details: error.message,
+      modelsAttempted: MODEL_PRIORITY,
       timestamp: new Date().toISOString()
     });
   }
