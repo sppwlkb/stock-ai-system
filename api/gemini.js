@@ -11,11 +11,11 @@
  */
 
 // 模型優先順序（當主模型過載時自動切換）
-// 注意：gemini-1.5-flash 在 v1beta 中已不可用
+// Gemini 3 Pro Preview 是目前最強的模型！
 const MODEL_PRIORITY = [
-  'gemini-2.5-flash',           // 主模型（最新、最強）
-  'gemini-2.0-flash',           // 備用 1（穩定）
-  'gemini-2.0-flash-lite',      // 備用 2（輕量快速）
+  'gemini-3-pro-preview',       // 🆕 主模型（Gemini 3 Pro - 最新最強！）
+  'gemini-2.5-flash',           // 備用 1（快速）
+  'gemini-2.0-flash',           // 備用 2（穩定）
 ];
 
 // 重試配置
