@@ -361,6 +361,19 @@ export const getTradingRecommendations = async (
           console.log(`🔧 股票 ${rec.ticker}: "${rec.stockName}" → "${validated.name}" (含 reason 修正)`);
         }
 
+        // 🔧 格式化 reason：確保段落有正確的換行
+        // 處理 AI 可能輸出的各種換行格式
+        correctedReason = correctedReason
+          // 處理 JSON 中的 \\n 轉義字符
+          .replace(/\\n/g, '\n')
+          // 在每個【段落標題】前加入換行（確保分段）
+          .replace(/([。！？])\s*【/g, '$1\n\n【')
+          // 確保段落標題後有換行
+          .replace(/】(?!\n)/g, '】\n')
+          // 移除連續多餘的換行（最多保留兩個）
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
+
         return {
           stockName: validated.name,
           ticker: validated.ticker,
