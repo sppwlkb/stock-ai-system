@@ -1,6 +1,7 @@
 
 import type { StockRecommendation, GroundingChunk, NewsArticle, HistoricalDataPoint, FilterSettings } from '../types';
 import { DEFAULT_FILTER_SETTINGS, RISK_LEVEL_LABELS } from '../types';
+import { validateAndCorrectStock } from './stockValidationService';
 
 // 🔒 使用後端 API（安全）- API Key 隱藏在後端
 const BACKEND_API_URL = '/api/gemini';
@@ -340,21 +341,35 @@ export const getTradingRecommendations = async (
     }
     
     // Sanitize data and add missing properties to match the StockRecommendation type.
-    const allRecommendations: StockRecommendation[] = parsedJson.map(rec => ({
-      stockName: rec.stockName || 'N/A',
-      ticker: rec.ticker || '0000',
-      exchange: rec.exchange || 'TWSE',
-      entryPoint: rec.entryPoint || 0,
-      exitPoint: rec.exitPoint || 0,
-      profitPoints: rec.profitPoints || 0,
-      sharesToBuy: rec.sharesToBuy || 0,
-      profitTWD: rec.profitTWD || 0,
-      reason: rec.reason || 'No reason provided.',
-      stopLoss: rec.stopLoss || 0,
-      // Use the currentPrice returned by AI (found via search), fallback to entryPoint
-      currentPrice: rec.currentPrice || rec.entryPoint || 0,
-      historicalData: [], // Default to empty array
-    }));
+    // 🔧 同時驗證並修正 AI 可能搞錯的股票名稱
+    const allRecommendations: StockRecommendation[] = await Promise.all(
+      parsedJson.map(async (rec: any) => {
+        // 驗證並修正股票名稱
+        const validated = await validateAndCorrectStock(
+          rec.ticker || '0000',
+          rec.stockName || 'N/A'
+        );
+
+        if (validated.corrected) {
+          console.log(`🔧 股票 ${rec.ticker}: "${rec.stockName}" → "${validated.name}"`);
+        }
+
+        return {
+          stockName: validated.name,
+          ticker: validated.ticker,
+          exchange: rec.exchange || 'TWSE',
+          entryPoint: rec.entryPoint || 0,
+          exitPoint: rec.exitPoint || 0,
+          profitPoints: rec.profitPoints || 0,
+          sharesToBuy: rec.sharesToBuy || 0,
+          profitTWD: rec.profitTWD || 0,
+          reason: rec.reason || 'No reason provided.',
+          stopLoss: rec.stopLoss || 0,
+          currentPrice: rec.currentPrice || rec.entryPoint || 0,
+          historicalData: [],
+        };
+      })
+    );
 
     // ✅ 驗證邏輯：過濾不符合用戶篩選條件的股票
     const { min: minPrice, max: maxPrice } = filterSettings.priceRange;
