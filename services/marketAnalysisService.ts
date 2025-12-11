@@ -8,9 +8,9 @@ import type { MarketAnalysis } from '../types';
 // 使用後端 API 呼叫 Gemini
 const BACKEND_API_URL = '/api/gemini';
 
-// 快取設定：30 分鐘內使用相同的市場分析結果
+// 快取設定：2 小時內使用相同的市場分析結果（減少 API 配額消耗）
 const CACHE_KEY = 'marketAnalysisCache';
-const CACHE_DURATION_MS = 30 * 60 * 1000; // 30 分鐘
+const CACHE_DURATION_MS = 2 * 60 * 60 * 1000; // 2 小時（原為 30 分鐘）
 
 interface CachedData {
   data: MarketAnalysis;

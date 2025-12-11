@@ -5,6 +5,71 @@ import { DEFAULT_FILTER_SETTINGS, RISK_LEVEL_LABELS } from '../types';
 // 🔒 使用後端 API（安全）- API Key 隱藏在後端
 const BACKEND_API_URL = '/api/gemini';
 
+// ⚡ 股票推薦快取設定（減少 API 配額消耗）
+const RECOMMENDATIONS_CACHE_KEY = 'stockRecommendationsCache';
+const RECOMMENDATIONS_CACHE_DURATION_MS = 30 * 60 * 1000; // 30 分鐘快取
+
+interface RecommendationsCacheData {
+  data: {
+    recommendations: StockRecommendation[];
+    sources: GroundingChunk[];
+  };
+  settings: string; // 設定的 JSON 字串（用於比對）
+  timestamp: number;
+}
+
+/**
+ * 從快取獲取股票推薦（如果未過期且設定相同）
+ */
+function getCachedRecommendations(settings: FilterSettings): RecommendationsCacheData['data'] | null {
+  try {
+    const cached = localStorage.getItem(RECOMMENDATIONS_CACHE_KEY);
+    if (!cached) return null;
+
+    const cacheData: RecommendationsCacheData = JSON.parse(cached);
+    const now = Date.now();
+
+    // 檢查是否過期
+    if (now - cacheData.timestamp >= RECOMMENDATIONS_CACHE_DURATION_MS) {
+      console.log('📦 股票推薦快取已過期');
+      return null;
+    }
+
+    // 檢查設定是否相同
+    const currentSettingsStr = JSON.stringify(settings);
+    if (cacheData.settings !== currentSettingsStr) {
+      console.log('📦 設定已變更，不使用快取');
+      return null;
+    }
+
+    console.log('📦 使用快取的股票推薦資料');
+    return cacheData.data;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 儲存股票推薦到快取
+ */
+function setCachedRecommendations(
+  settings: FilterSettings,
+  recommendations: StockRecommendation[],
+  sources: GroundingChunk[]
+): void {
+  try {
+    const cacheData: RecommendationsCacheData = {
+      data: { recommendations, sources },
+      settings: JSON.stringify(settings),
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(RECOMMENDATIONS_CACHE_KEY, JSON.stringify(cacheData));
+    console.log('📦 已儲存股票推薦到快取');
+  } catch (e) {
+    console.warn('無法儲存股票推薦快取:', e);
+  }
+}
+
 // 後端 API 調用函數
 async function callBackendAPI(prompt: string, useGoogleSearch: boolean = false): Promise<any> {
   const response = await fetch(BACKEND_API_URL, {
@@ -212,6 +277,12 @@ async function retryWithBackoff<T>(operation: () => Promise<T>, retries: number 
 export const getTradingRecommendations = async (
   filterSettings: FilterSettings = DEFAULT_FILTER_SETTINGS
 ): Promise<{ recommendations: StockRecommendation[], sources: GroundingChunk[] }> => {
+  // ⚡ 優先檢查快取（減少 API 配額消耗）
+  const cached = getCachedRecommendations(filterSettings);
+  if (cached) {
+    return cached;
+  }
+
   try {
     // 根據用戶設定動態生成系統指令
     const systemInstruction = generateSystemInstruction(filterSettings);
@@ -319,6 +390,9 @@ export const getTradingRecommendations = async (
     }
 
     const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks as GroundingChunk[] || [];
+
+    // ⚡ 儲存到快取（減少 API 配額消耗）
+    setCachedRecommendations(filterSettings, filteredRecommendations, sources);
 
     return { recommendations: filteredRecommendations, sources };
 

@@ -11,10 +11,10 @@
  */
 
 // 模型優先順序（當主模型過載時自動切換）
-// Gemini 3 Pro Preview 是目前最強的模型！
+// 🔄 使用更省配額的 lite 模型，避免 429 錯誤
 const MODEL_PRIORITY = [
-  'gemini-3-pro-preview',       // 🆕 主模型（Gemini 3 Pro - 最新最強！）
-  'gemini-2.5-flash',           // 備用 1（快速）
+  'gemini-2.0-flash-lite',      // 🆕 主模型（最省配額、速度最快）
+  'gemini-2.5-flash-lite-preview-06-17',  // 備用 1（較省配額）
   'gemini-2.0-flash',           // 備用 2（穩定）
 ];
 
