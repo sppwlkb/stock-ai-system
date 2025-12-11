@@ -350,8 +350,15 @@ export const getTradingRecommendations = async (
           rec.stockName || 'N/A'
         );
 
-        if (validated.corrected) {
-          console.log(`🔧 股票 ${rec.ticker}: "${rec.stockName}" → "${validated.name}"`);
+        // 🔧 如果股票名稱被修正，也要修正 reason 中的錯誤名稱
+        let correctedReason = rec.reason || 'No reason provided.';
+        if (validated.corrected && rec.stockName && rec.stockName !== validated.name) {
+          // 替換 reason 中的錯誤股票名稱
+          correctedReason = correctedReason.replace(
+            new RegExp(rec.stockName, 'g'),
+            validated.name
+          );
+          console.log(`🔧 股票 ${rec.ticker}: "${rec.stockName}" → "${validated.name}" (含 reason 修正)`);
         }
 
         return {
@@ -363,7 +370,7 @@ export const getTradingRecommendations = async (
           profitPoints: rec.profitPoints || 0,
           sharesToBuy: rec.sharesToBuy || 0,
           profitTWD: rec.profitTWD || 0,
-          reason: rec.reason || 'No reason provided.',
+          reason: correctedReason,
           stopLoss: rec.stopLoss || 0,
           currentPrice: rec.currentPrice || rec.entryPoint || 0,
           historicalData: [],
