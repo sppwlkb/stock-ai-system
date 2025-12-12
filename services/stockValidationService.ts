@@ -1,148 +1,116 @@
 /**
  * 股票代號驗證服務
  * 用於驗證 AI 回傳的股票代號和名稱是否正確
- * 使用證交所 API 獲取正確的股票名稱
+ * 使用靜態對照表（避免 CORS 問題）
  */
 
-interface StockInfo {
-  ticker: string;
-  name: string;
-  market: string; // TWSE 或 OTC
-}
+// ===== 台股代號對照表（常見股票）=====
+// 涵蓋台灣上市櫃前 200 大市值股票
+const STOCK_NAME_MAP: Record<string, string> = {
+  // === 半導體 ===
+  '2330': '台積電', '2303': '聯電', '2454': '聯發科', '3711': '日月光投控',
+  '2379': '瑞昱', '3034': '聯詠', '2344': '華邦電', '6770': '力積電',
+  '3443': '創意', '5347': '世界', '3529': '力旺', '2449': '京元電子',
+  '6415': '矽力-KY', '8046': '南電', '3037': '欣興', '2408': '南亞科',
+  '3474': '華亞科', '2363': '矽統', '6533': '晶心科', '3035': '智原',
+  '2455': '全新', '5269': '祥碩', '6488': '環球晶', '3105': '穩懋',
+  '8150': '南茂', '6239': '力成', '2458': '義隆', '3661': '世芯-KY',
 
-// 股票資訊快取（避免重複查詢）
-const stockInfoCache = new Map<string, StockInfo | null>();
-const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 小時快取
-let cacheTimestamp = 0;
+  // === 電子代工/零組件 ===
+  '2317': '鴻海', '2382': '廣達', '2354': '鴻準', '2356': '英業達',
+  '2324': '仁寶', '2353': '宏碁', '2357': '華碩', '3231': '緯創',
+  '2301': '光寶科', '2308': '台達電', '2360': '致茂', '2345': '智邦',
+  '2327': '國巨', '2377': '微星', '3017': '奇鋐', '3006': '晶豪科',
+  '2059': '川湖', '6669': '緯穎', '3533': '嘉澤',
+
+  // === 光電/面板 ===
+  '3008': '大立光', '2474': '可成', '6409': '旭隼', '3406': '玉晶光',
+  '2409': '友達', '3481': '群創', '6176': '瑞儀', '6285': '啟碁',
+
+  // === 金融股 ===
+  '2881': '富邦金', '2882': '國泰金', '2891': '中信金', '2886': '兆豐金',
+  '2884': '玉山金', '2892': '第一金', '2880': '華南金', '2883': '開發金',
+  '2885': '元大金', '2887': '台新金', '2888': '新光金', '2889': '國票金',
+  '2890': '永豐金', '5880': '合庫金', '2801': '彰銀', '2834': '臺企銀',
+
+  // === 傳產/塑化/鋼鐵 ===
+  '1301': '台塑', '1303': '南亞', '1326': '台化', '6505': '台塑化',
+  '2002': '中鋼', '2015': '豐興', '2027': '大成鋼', '1402': '遠東新',
+  '1101': '台泥', '1102': '亞泥', '1476': '儒鴻', '9910': '豐泰',
+  '9904': '寶成', '2105': '正新', '2201': '裕隆', '2207': '和泰車',
+
+  // === 食品/民生 ===
+  '1216': '統一', '2912': '統一超', '1227': '佳格', '1229': '聯華',
+  '1210': '大成', '9921': '巨大', '1707': '葡萄王',
+
+  // === 電信/通訊 ===
+  '2412': '中華電', '3045': '台灣大', '4904': '遠傳', '2498': '宏達電',
+
+  // === 航運/物流 ===
+  '2603': '長榮', '2609': '陽明', '2615': '萬海', '2610': '華航',
+  '2618': '長榮航', '2634': '漢翔',
+
+  // === 生技醫療 ===
+  '4743': '合一', '6446': '藥華藥', '1760': '寶齡富錦', '4123': '晟德',
+  '6472': '保瑞',
+
+  // === 其他重要股票 ===
+  '2395': '研華', '3702': '大聯大', '5871': '中租-KY', '6510': '精測',
+  '2049': '上銀', '1504': '東元', '2542': '興富發', '2545': '皇翔',
+  '3653': '健策', '2376': '技嘉', '2352': '佳世達', '3023': '信邦',
+  '2383': '台光電', '4938': '和碩', '2347': '聯強',
+
+  // === AI 常搞錯的股票（特別標記）===
+  '2405': '輔信',      // ⚠️ 不是南亞科！
+  '2406': '國碩',
+  '2404': '漢唐',
+  '2401': '凌陽',
+  '2402': '毅嘉',
+  '2403': '友尚',
+};
 
 /**
- * 從證交所 API 獲取單一股票資訊
+ * 從靜態對照表獲取股票名稱
  * @param ticker 股票代號
- * @returns 股票資訊或 null
+ * @returns 股票名稱或 null
  */
-export async function getStockInfo(ticker: string): Promise<StockInfo | null> {
-  // 檢查快取
-  if (stockInfoCache.has(ticker) && Date.now() - cacheTimestamp < CACHE_DURATION_MS) {
-    return stockInfoCache.get(ticker) || null;
-  }
-
-  try {
-    // 使用 Yahoo Finance API 來驗證股票資訊（較可靠）
-    const response = await fetch(
-      `https://query1.finance.yahoo.com/v1/finance/search?q=${ticker}.TW&quotesCount=1&newsCount=0`,
-      { headers: { 'User-Agent': 'Mozilla/5.0' } }
-    );
-
-    if (!response.ok) {
-      console.warn(`無法查詢股票 ${ticker} 資訊`);
-      return null;
-    }
-
-    const data = await response.json();
-    const quote = data.quotes?.[0];
-
-    if (quote && quote.symbol?.includes(ticker)) {
-      const stockInfo: StockInfo = {
-        ticker: ticker,
-        name: quote.shortname || quote.longname || '',
-        market: quote.symbol?.endsWith('.TWO') ? 'OTC' : 'TWSE'
-      };
-      stockInfoCache.set(ticker, stockInfo);
-      cacheTimestamp = Date.now();
-      return stockInfo;
-    }
-
-    return null;
-  } catch (error) {
-    console.error(`查詢股票 ${ticker} 資訊失敗:`, error);
-    return null;
-  }
+export function getStockName(ticker: string): string | null {
+  return STOCK_NAME_MAP[ticker] || null;
 }
 
 /**
- * 驗證並修正 AI 回傳的股票資訊
+ * 驗證並修正 AI 回傳的股票資訊（同步版本，不需要 API）
  * @param aiTicker AI 回傳的股票代號
  * @param aiName AI 回傳的股票名稱
  * @returns 修正後的股票資訊
  */
-export async function validateAndCorrectStock(
+export function validateAndCorrectStock(
   aiTicker: string,
   aiName: string
-): Promise<{ ticker: string; name: string; corrected: boolean }> {
-  // 常見錯誤對照表（AI 經常搞錯的股票）
-  // 這裡列出正確的股票代號對應名稱
-  const KNOWN_CORRECTIONS: Record<string, string> = {
-    // AI 常搞錯的股票
-    '2405': '輔信',
-    '2408': '南亞科',
-    '3474': '華亞科',
-    // 常見電子股
-    '2330': '台積電',
-    '2303': '聯電',
-    '2454': '聯發科',
-    '2317': '鴻海',
-    '2382': '廣達',
-    '2308': '台達電',
-    '2412': '中華電',
-    '3008': '大立光',
-    '2881': '富邦金',
-    '2882': '國泰金',
-    '2891': '中信金',
-    '2886': '兆豐金',
-    '2884': '玉山金',
-    '2892': '第一金',
-    '2357': '華碩',
-    '2327': '國巨',
-    '3711': '日月光投控',
-    '2379': '瑞昱',
-    '2301': '光寶科',
-    '6505': '台塑化',
-    '1301': '台塑',
-    '1303': '南亞',
-    '1326': '台化',
-    '2002': '中鋼',
-    '2912': '統一超',
-    '9910': '豐泰',
-    '1216': '統一',
-    '2207': '和泰車',
-  };
+): { ticker: string; name: string; corrected: boolean } {
+  // 從對照表取得正確名稱
+  const correctName = STOCK_NAME_MAP[aiTicker];
 
-  // 先檢查常見錯誤
-  if (KNOWN_CORRECTIONS[aiTicker] && KNOWN_CORRECTIONS[aiTicker] !== aiName) {
-    console.log(`🔧 修正股票名稱: ${aiTicker} "${aiName}" → "${KNOWN_CORRECTIONS[aiTicker]}"`);
+  // 如果對照表有這支股票，且名稱不同，則修正
+  if (correctName && correctName !== aiName) {
+    console.log(`🔧 修正股票名稱: ${aiTicker} "${aiName}" → "${correctName}"`);
     return {
       ticker: aiTicker,
-      name: KNOWN_CORRECTIONS[aiTicker],
+      name: correctName,
       corrected: true
     };
   }
 
-  // 嘗試從 API 獲取正確名稱
-  try {
-    const stockInfo = await getStockInfo(aiTicker);
-    if (stockInfo && stockInfo.name && stockInfo.name !== aiName) {
-      // 取得簡短名稱（去除股份有限公司等後綴）
-      let correctName = stockInfo.name
-        .replace(/股份有限公司/g, '')
-        .replace(/有限公司/g, '')
-        .replace(/公司/g, '')
-        .trim();
-      
-      // 如果取得的名稱合理，使用它
-      if (correctName.length > 0 && correctName.length <= 10) {
-        console.log(`🔧 API 修正股票名稱: ${aiTicker} "${aiName}" → "${correctName}"`);
-        return {
-          ticker: aiTicker,
-          name: correctName,
-          corrected: true
-        };
-      }
-    }
-  } catch (error) {
-    console.warn(`無法驗證股票 ${aiTicker}:`, error);
+  // 如果對照表有這支股票，且名稱相同，直接返回
+  if (correctName) {
+    return {
+      ticker: aiTicker,
+      name: correctName,
+      corrected: false
+    };
   }
 
-  // 無法修正，返回原始值
+  // 對照表沒有這支股票，返回 AI 給的名稱
   return {
     ticker: aiTicker,
     name: aiName,
@@ -151,30 +119,26 @@ export async function validateAndCorrectStock(
 }
 
 /**
- * 批次驗證股票清單
+ * 批次驗證股票清單（同步版本）
  * @param stocks 股票清單
  * @returns 驗證後的股票清單
  */
-export async function validateStockList(
-  stocks: Array<{ ticker: string; stockName: string; [key: string]: any }>
-): Promise<Array<{ ticker: string; stockName: string; [key: string]: any }>> {
-  const results = await Promise.all(
-    stocks.map(async (stock) => {
-      const validated = await validateAndCorrectStock(stock.ticker, stock.stockName);
-      return {
-        ...stock,
-        stockName: validated.name,
-        _nameWasCorrected: validated.corrected
-      };
-    })
-  );
+export function validateStockList<T extends { ticker: string; stockName: string }>(
+  stocks: T[]
+): T[] {
+  const results = stocks.map((stock) => {
+    const validated = validateAndCorrectStock(stock.ticker, stock.stockName);
+    return {
+      ...stock,
+      stockName: validated.name,
+    };
+  });
 
   // 記錄修正統計
-  const correctedCount = results.filter(r => r._nameWasCorrected).length;
+  const correctedCount = stocks.filter((s, i) => s.stockName !== results[i].stockName).length;
   if (correctedCount > 0) {
     console.log(`📊 股票名稱驗證完成：${correctedCount}/${results.length} 支被修正`);
   }
 
   return results;
 }
-

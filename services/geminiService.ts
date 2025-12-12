@@ -341,55 +341,53 @@ export const getTradingRecommendations = async (
     }
     
     // Sanitize data and add missing properties to match the StockRecommendation type.
-    // 🔧 同時驗證並修正 AI 可能搞錯的股票名稱
-    const allRecommendations: StockRecommendation[] = await Promise.all(
-      parsedJson.map(async (rec: any) => {
-        // 驗證並修正股票名稱
-        const validated = await validateAndCorrectStock(
-          rec.ticker || '0000',
-          rec.stockName || 'N/A'
+    // 🔧 同時驗證並修正 AI 可能搞錯的股票名稱（使用同步靜態對照表，無 CORS 問題）
+    const allRecommendations: StockRecommendation[] = parsedJson.map((rec: any) => {
+      // 驗證並修正股票名稱（同步函數，使用靜態對照表）
+      const validated = validateAndCorrectStock(
+        rec.ticker || '0000',
+        rec.stockName || 'N/A'
+      );
+
+      // 🔧 如果股票名稱被修正，也要修正 reason 中的錯誤名稱
+      let correctedReason = rec.reason || 'No reason provided.';
+      if (validated.corrected && rec.stockName && rec.stockName !== validated.name) {
+        // 替換 reason 中的錯誤股票名稱
+        correctedReason = correctedReason.replace(
+          new RegExp(rec.stockName, 'g'),
+          validated.name
         );
+        console.log(`🔧 股票 ${rec.ticker}: "${rec.stockName}" → "${validated.name}" (含 reason 修正)`);
+      }
 
-        // 🔧 如果股票名稱被修正，也要修正 reason 中的錯誤名稱
-        let correctedReason = rec.reason || 'No reason provided.';
-        if (validated.corrected && rec.stockName && rec.stockName !== validated.name) {
-          // 替換 reason 中的錯誤股票名稱
-          correctedReason = correctedReason.replace(
-            new RegExp(rec.stockName, 'g'),
-            validated.name
-          );
-          console.log(`🔧 股票 ${rec.ticker}: "${rec.stockName}" → "${validated.name}" (含 reason 修正)`);
-        }
+      // 🔧 格式化 reason：確保段落有正確的換行
+      // 處理 AI 可能輸出的各種換行格式
+      correctedReason = correctedReason
+        // 處理 JSON 中的 \\n 轉義字符
+        .replace(/\\n/g, '\n')
+        // 在每個【段落標題】前加入換行（確保分段）
+        .replace(/([。！？])\s*【/g, '$1\n\n【')
+        // 確保段落標題後有換行
+        .replace(/】(?!\n)/g, '】\n')
+        // 移除連續多餘的換行（最多保留兩個）
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
 
-        // 🔧 格式化 reason：確保段落有正確的換行
-        // 處理 AI 可能輸出的各種換行格式
-        correctedReason = correctedReason
-          // 處理 JSON 中的 \\n 轉義字符
-          .replace(/\\n/g, '\n')
-          // 在每個【段落標題】前加入換行（確保分段）
-          .replace(/([。！？])\s*【/g, '$1\n\n【')
-          // 確保段落標題後有換行
-          .replace(/】(?!\n)/g, '】\n')
-          // 移除連續多餘的換行（最多保留兩個）
-          .replace(/\n{3,}/g, '\n\n')
-          .trim();
-
-        return {
-          stockName: validated.name,
-          ticker: validated.ticker,
-          exchange: rec.exchange || 'TWSE',
-          entryPoint: rec.entryPoint || 0,
-          exitPoint: rec.exitPoint || 0,
-          profitPoints: rec.profitPoints || 0,
-          sharesToBuy: rec.sharesToBuy || 0,
-          profitTWD: rec.profitTWD || 0,
-          reason: correctedReason,
-          stopLoss: rec.stopLoss || 0,
-          currentPrice: rec.currentPrice || rec.entryPoint || 0,
-          historicalData: [],
-        };
-      })
-    );
+      return {
+        stockName: validated.name,
+        ticker: validated.ticker,
+        exchange: rec.exchange || 'TWSE',
+        entryPoint: rec.entryPoint || 0,
+        exitPoint: rec.exitPoint || 0,
+        profitPoints: rec.profitPoints || 0,
+        sharesToBuy: rec.sharesToBuy || 0,
+        profitTWD: rec.profitTWD || 0,
+        reason: correctedReason,
+        stopLoss: rec.stopLoss || 0,
+        currentPrice: rec.currentPrice || rec.entryPoint || 0,
+        historicalData: [],
+      };
+    });
 
     // ✅ 驗證邏輯：過濾不符合用戶篩選條件的股票
     const { min: minPrice, max: maxPrice } = filterSettings.priceRange;
