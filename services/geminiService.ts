@@ -137,13 +137,22 @@ const generateSystemInstruction = (settings: FilterSettings): string => {
 3. 消息面有重大利多尚未完全反映在股價上
 4. 估值面仍有上升空間（低本益比、低基期）
 
-【⚠️ 嚴格遵守的用戶篩選條件 - 違反將被系統過濾】：
-- 📌 股價範圍：**嚴格限制在 ${settings.priceRange.min} ~ ${settings.priceRange.max} 元**
-- 📌 推薦股票數量：${settings.stockCount} 支
-- 📌 目標獲利率：${settings.targetProfitRate}%
-- 📌 風險偏好：${RISK_LEVEL_LABELS[settings.riskLevel]}
-- 📌 投資本金：${settings.capital.toLocaleString()} 元
-- 📌 損益比要求：${riskRewardRatio}（至少 1:3 以上為佳）
+【🚨 最重要的硬性條件 - 違反將全部作廢】：
+
+⛔⛔⛔ **股價範圍是最嚴格的限制** ⛔⛔⛔
+- 用戶設定的價格範圍：**${settings.priceRange.min} ~ ${settings.priceRange.max} 元**
+- 每支股票的 currentPrice 必須 >= ${settings.priceRange.min} 元 且 <= ${settings.priceRange.max} 元
+- ❌ **絕對禁止**推薦超出價格範圍的股票！
+- ❌ 即使技術面再好、消息面再利多，超出價格範圍的股票一律不選！
+- ❌ 例如：如果上限是 50 元，絕對不能選 51 元以上的股票！
+- ✅ 只從符合價格範圍的股票池中挑選妖股
+
+📌 其他篩選條件：
+- 推薦股票數量：${settings.stockCount} 支
+- 目標獲利率：${settings.targetProfitRate}%
+- 風險偏好：${RISK_LEVEL_LABELS[settings.riskLevel]}
+- 投資本金：${settings.capital.toLocaleString()} 元
+- 損益比要求：${riskRewardRatio}（至少 1:3 以上為佳）
 - 📌 風險策略：${riskStrategy}
 
 ═══════════════════════════════════════════════════════
@@ -445,16 +454,24 @@ export const getTradingRecommendations = async (
     const fullPrompt = `${systemInstruction}
 
 🎯 **執行任務 - 專業分析師妖股獵人模式**：
-請掃描今日台股市場 1700+ 支股票，挖掘股價 ${filterSettings.priceRange.min} ~ ${filterSettings.priceRange.max} 元之間，具有「爆發潛力」的妖股標的。
 
-🎲 **多樣性要求（重要！）**
+⛔⛔⛔ **最重要：股價範圍限制** ⛔⛔⛔
+用戶設定的價格範圍：**${filterSettings.priceRange.min} ~ ${filterSettings.priceRange.max} 元**
+- 你推薦的每一支股票，currentPrice 必須在 ${filterSettings.priceRange.min} ~ ${filterSettings.priceRange.max} 元之間
+- ❌ 絕對禁止推薦超出這個價格範圍的股票！
+- ❌ 聯發科(1410元)、台達電(911元)、台積電(1100元) 這些高價股如果超出範圍就不能選！
+- ✅ 只能從價格 ${filterSettings.priceRange.min} ~ ${filterSettings.priceRange.max} 元的股票中挑選
+
+請掃描今日台股市場中，**股價 ${filterSettings.priceRange.min} ~ ${filterSettings.priceRange.max} 元**的股票，挖掘具有「爆發潛力」的妖股標的。
+
+🎲 **多樣性要求**
 - 隨機種子：${Date.now()}（每次分析必須選擇**完全不同**的股票組合）
-- ❌ 禁止每次都選相同的熱門股（如台積電、鴻海、聯發科、華碩、聯電）
-- ✅ 優先發掘**冷門但技術面強勢**的潛力股
+- ❌ 禁止每次都選相同的熱門股
+- ✅ 優先發掘冷門但技術面強勢的潛力股
 - ✅ 從不同產業類股中選擇（電子、金融、傳產、生技等）
-- ✅ 考慮中小型股、上櫃股票，不要只選權值股
+- ✅ 考慮中小型股、上櫃股票
 
-📋 **篩選條件**：
+📋 **其他篩選條件**：
 - 推薦數量：${filterSettings.stockCount} 支股票
 - 目標漲幅：${filterSettings.targetProfitRate}% 以上
 - 風險偏好：${RISK_LEVEL_LABELS[filterSettings.riskLevel]}
