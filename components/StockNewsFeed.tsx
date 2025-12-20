@@ -18,6 +18,13 @@ export const StockNewsFeed: React.FC<StockNewsFeedProps> = ({ news }) => {
         <NewspaperIcon className="w-5 h-5 mr-2" />
         相關新聞
       </h4>
+      {/* 警告標註：新聞來源提醒 */}
+      <div className="mb-3 p-2 bg-yellow-900/30 border border-yellow-700/50 rounded-md">
+        <p className="text-xs text-yellow-400 flex items-center">
+          <span className="mr-1">⚠️</span>
+          新聞由 AI 搜尋生成，連結可能不準確，請自行驗證
+        </p>
+      </div>
       <ul className="space-y-3">
         {news.map((article, index) => (
           <li key={index} className="p-3 bg-gray-700/50 rounded-md hover:bg-gray-700 transition-colors duration-200">

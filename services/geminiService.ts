@@ -485,7 +485,46 @@ export const getHistoricalStockData = async (stockName: string, ticker: string, 
 
 export const getStockNews = async (stockName: string): Promise<NewsArticle[]> => {
   try {
-    // 獲取當前日期，用於限制新聞搜尋範圍
+    // 優先使用 Google News RSS API 獲取真實新聞
+    console.log(`📰 正在獲取 ${stockName} 的真實新聞...`);
+
+    const response = await fetch(`/api/stock-news?stock=${encodeURIComponent(stockName)}&limit=5`);
+
+    if (response.ok) {
+      const data = await response.json();
+
+      if (data.success && data.news && data.news.length > 0) {
+        console.log(`✅ 成功獲取 ${data.count} 則真實新聞 (來源: ${data.source})`);
+
+        // 轉換格式以符合 NewsArticle 介面
+        return data.news.map((item: any) => ({
+          title: item.title,
+          link: item.link,
+          source: item.source || 'Google News'
+        }));
+      }
+    }
+
+    // 如果 Google News RSS 失敗，回退到 AI 生成（會有警告標示）
+    console.warn(`⚠️ Google News RSS 失敗，回退到 AI 搜尋...`);
+    return await getStockNewsFromAI(stockName);
+
+  } catch (error) {
+    console.error(`Error fetching news for ${stockName}:`, error);
+    // 嘗試 AI 備援
+    try {
+      return await getStockNewsFromAI(stockName);
+    } catch {
+      return [];
+    }
+  }
+};
+
+/**
+ * 備援方案：使用 AI 搜尋新聞（可能有幻覺問題）
+ */
+async function getStockNewsFromAI(stockName: string): Promise<NewsArticle[]> {
+  try {
     const today = new Date();
     const todayStr = today.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '/');
     const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -496,7 +535,7 @@ export const getStockNews = async (stockName: string): Promise<NewsArticle[]> =>
 ⚠️ **重要限制**：
 - 只搜尋 2025 年 12 月的新聞
 - 排除 2024 年或更早的舊新聞
-- 優先選擇有具體日期的新聞
+- 必須提供真實可訪問的新聞連結
 
 請以繁體中文、嚴格的 JSON 格式陣列回覆。不要有任何 JSON 以外的文字、解釋或註解。
 回傳的 JSON 格式必須如下：
@@ -542,11 +581,9 @@ export const getStockNews = async (stockName: string): Promise<NewsArticle[]> =>
       }
     }
 
-    console.warn(`No valid JSON array found in news response for ${stockName}. Response:`, text);
     return [];
-
   } catch (error) {
-    console.error(`Error fetching news for ${stockName}:`, error);
-    return []; // Return an empty array on error to not break the UI
+    console.error(`Error fetching AI news for ${stockName}:`, error);
+    return [];
   }
-};
+}
