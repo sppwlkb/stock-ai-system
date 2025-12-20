@@ -27,7 +27,8 @@ export default async function handler(req, res) {
 
     // 建立 Google News RSS URL
     // 搜尋格式：股票名稱 + 台股
-    const searchQuery = encodeURIComponent(`${stock} 台股`);
+    // 加入 when:7d 參數限制只搜尋過去 7 天的新聞（確保新聞時效性）
+    const searchQuery = encodeURIComponent(`${stock} 台股 when:7d`);
     const rssUrl = `https://news.google.com/rss/search?q=${searchQuery}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant`;
 
     console.log('Fetching Google News RSS:', rssUrl);
@@ -74,6 +75,10 @@ export default async function handler(req, res) {
 function parseRssXml(xmlText, limit) {
   const news = [];
 
+  // 計算 30 天前的日期（用於過濾舊新聞）
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
   // 使用正則表達式解析 XML（Vercel Serverless 環境可能沒有 DOM parser）
   const itemRegex = /<item>([\s\S]*?)<\/item>/g;
   const titleRegex = /<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>|<title>([\s\S]*?)<\/title>/;
@@ -101,7 +106,17 @@ function parseRssXml(xmlText, limit) {
     const pubDateMatch = itemContent.match(pubDateRegex);
     const pubDate = pubDateMatch ? pubDateMatch[1].trim() : '';
 
-    if (title && link) {
+    // 檢查新聞日期是否在 30 天內
+    let isRecent = true;
+    if (pubDate) {
+      const newsDate = new Date(pubDate);
+      if (!isNaN(newsDate.getTime()) && newsDate < thirtyDaysAgo) {
+        isRecent = false; // 超過 30 天的新聞跳過
+        console.log(`跳過舊新聞: ${title} (${pubDate})`);
+      }
+    }
+
+    if (title && link && isRecent) {
       news.push({
         title: title,
         link: link,
