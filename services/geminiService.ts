@@ -631,6 +631,10 @@ ${avoidStocksInstruction}
 
       // 🔧 如果股票名稱被修正，也要修正 reason 中的錯誤名稱
       let correctedReason = rec.reason || 'No reason provided.';
+
+      // 📊 診斷日誌：顯示 AI 返回的 reason 長度和前 200 字
+      console.log(`📝 ${rec.stockName}(${rec.ticker}) reason 長度: ${correctedReason.length} 字`);
+      console.log(`📝 ${rec.stockName} reason 前 300 字: ${correctedReason.substring(0, 300)}...`);
       if (validated.corrected && rec.stockName && rec.stockName !== validated.name) {
         // 替換 reason 中的錯誤股票名稱
         correctedReason = correctedReason.replace(
