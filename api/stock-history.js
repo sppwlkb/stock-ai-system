@@ -120,9 +120,15 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Stock History API Error:', error);
-    return res.status(500).json({
-      success: false,
-      error: error.message || '獲取歷史數據時發生錯誤'
+
+    // 返回空數據而非錯誤，讓前端可以繼續運作
+    return res.status(200).json({
+      success: true,
+      ticker: req.query.ticker || 'unknown',
+      data: [],
+      source: 'none',
+      count: 0,
+      warning: error.message || '暫時無法獲取歷史數據，但不影響主要功能'
     });
   }
 }
