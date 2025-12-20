@@ -2,6 +2,7 @@
 import type { StockRecommendation, GroundingChunk, NewsArticle, HistoricalDataPoint, FilterSettings } from '../types';
 import { DEFAULT_FILTER_SETTINGS, RISK_LEVEL_LABELS } from '../types';
 import { validateAndCorrectStock } from './stockValidationService';
+import { validateAndCorrectReason, getRealMarketIndex, ValidationResult } from './dataValidationService';
 
 // 🔒 使用後端 API（安全）- API Key 隱藏在後端
 const BACKEND_API_URL = '/api/gemini';
@@ -758,6 +759,47 @@ ${avoidStocksInstruction}
     console.log(
       `📊 最終篩選結果：AI 推薦 ${allRecommendations.length} 支 → 符合條件 ${filteredRecommendations.length} 支`
     );
+
+    // 🔍 驗證並修正 AI 生成的 reason 中的錯誤數據
+    console.log('🔍 開始驗證 AI 生成的數據真實性...');
+    const allValidationResults: ValidationResult[] = [];
+
+    for (const rec of filteredRecommendations) {
+      try {
+        const { correctedReason, validationResults } = await validateAndCorrectReason(
+          rec.reason,
+          rec.ticker
+        );
+
+        if (validationResults.length > 0) {
+          console.log(`⚠️ ${rec.stockName}(${rec.ticker}) 發現 ${validationResults.length} 項數據錯誤`);
+          validationResults.forEach(v => {
+            console.warn(`   ❌ ${v.field}: AI=${v.aiValue} vs 真實=${v.realValue} (誤差 ${v.deviation?.toFixed(1)}%)`);
+          });
+
+          // 更新 reason
+          rec.reason = correctedReason;
+
+          // 加入驗證警告到 reason 開頭
+          if (validationResults.length > 0) {
+            const warningHeader = `⚠️ 【數據驗證警告】以下數據已由系統驗證修正：\n` +
+              validationResults.map(v => `• ${v.field}: ${v.aiValue} → ${v.realValue}`).join('\n') +
+              `\n\n`;
+            rec.reason = warningHeader + rec.reason;
+          }
+        }
+
+        allValidationResults.push(...validationResults);
+      } catch (validationError) {
+        console.warn(`⚠️ 驗證 ${rec.ticker} 時發生錯誤:`, validationError);
+      }
+    }
+
+    if (allValidationResults.length > 0) {
+      console.warn(`⚠️ 共發現 ${allValidationResults.length} 項 AI 數據錯誤並已修正`);
+    } else {
+      console.log('✅ AI 數據驗證通過，未發現明顯錯誤');
+    }
 
     const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks as GroundingChunk[] || [];
 
