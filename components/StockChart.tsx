@@ -50,9 +50,13 @@ const StockChart: React.FC<StockChartProps> = ({ ticker, exchange, entryPoint, e
         }
 
         try {
+            // 台股符號格式：TWSE:2303 或 TPEX:xxxx
+            const tvSymbol = `${exchange}:${ticker}`;
+            console.log(`📊 TradingView 載入股票: ${tvSymbol}`);
+
             const widgetOptions = {
                 autosize: true,
-                symbol: `${exchange}:${ticker}`,
+                symbol: tvSymbol,
                 interval: 'D',
                 timezone: 'Asia/Taipei',
                 theme: 'dark',
@@ -60,21 +64,11 @@ const StockChart: React.FC<StockChartProps> = ({ ticker, exchange, entryPoint, e
                 locale: 'zh_TW',
                 toolbar_bg: '#1f2937',
                 enable_publishing: false,
-                hide_side_toolbar: true,
-                allow_symbol_change: false,
+                hide_side_toolbar: false, // 顯示側邊工具列讓用戶可以切換指標
+                allow_symbol_change: true, // 允許用戶搜尋其他股票
                 container_id: containerId,
-                studies: [
-                    'MASimple@tv-basicstudies',
-                    'MASimple@tv-basicstudies',
-                ],
-                studies_overrides: {
-                    "volume.volume.color.0": "#ef4444",
-                    "volume.volume.color.1": "#10b981",
-                    "MASimple.inputs.Length": 5,
-                    "MASimple.plot.color": "#22d3ee",
-                    "MASimple.inputs.Length.1": 20,
-                    "MASimple.plot.color.1": "#a78bfa",
-                },
+                // 移除 studies 配置，因為免費版可能不支持
+                // 用戶可以自己在圖表上添加指標
                 overrides: {
                     "paneProperties.background": "#111827",
                     "paneProperties.vertGridProperties.color": "#374151",
@@ -170,18 +164,59 @@ const StockChart: React.FC<StockChartProps> = ({ ticker, exchange, entryPoint, e
     };
   }, [containerId, exchange, entryPoint, exitPoint, ticker]);
 
+  // 外部 K 線圖連結（備用方案）
+  const yahooUrl = `https://tw.stock.yahoo.com/quote/${ticker}.TW/technical-analysis`;
+  const cnyesUrl = `https://www.cnyes.com/twstock/${ticker}`;
+  const tradingViewUrl = `https://www.tradingview.com/chart/?symbol=${exchange}:${ticker}`;
+
   return (
-    <div className="my-4 h-96 w-full bg-gray-900 rounded-lg overflow-hidden border border-gray-700 relative">
-      {/* 載入指示器 */}
-      {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80 z-10">
-          <div className="flex flex-col items-center space-y-3">
-            <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-            <span className="text-gray-400 text-sm">載入圖表中...</span>
+    <div className="my-4 w-full bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
+      {/* TradingView 圖表區域 */}
+      <div className="h-96 relative">
+        {/* 載入指示器 */}
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80 z-10">
+            <div className="flex flex-col items-center space-y-3">
+              <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-gray-400 text-sm">載入 {exchange}:{ticker} 圖表中...</span>
+            </div>
+          </div>
+        )}
+        <div id={containerId} ref={chartContainerRef} className="w-full h-full" />
+      </div>
+
+      {/* 外部圖表連結（備用方案） */}
+      <div className="p-3 bg-gray-800 border-t border-gray-700">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-gray-400 text-sm">📈 查看更多圖表：</span>
+          <div className="flex gap-2 flex-wrap">
+            <a
+              href={tradingViewUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
+            >
+              TradingView
+            </a>
+            <a
+              href={yahooUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg transition-colors"
+            >
+              Yahoo 技術分析
+            </a>
+            <a
+              href={cnyesUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors"
+            >
+              鉅亨網
+            </a>
           </div>
         </div>
-      )}
-      <div id={containerId} ref={chartContainerRef} className="w-full h-full" />
+      </div>
     </div>
   );
 };
