@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { getTradingRecommendations, getStockNews, getHistoricalStockData } from './services/geminiService';
+import { getTradingRecommendations, getStockNews, getHistoricalStockData, clearRecommendationsCache } from './services/geminiService';
 import { fetchInitialLivePrices, updateLivePrices } from './services/stockDataService';
 import { getMarketAnalysis } from './services/marketAnalysisService';
 import { assessRisk } from './services/riskManagement';
@@ -75,20 +75,27 @@ const App: React.FC = () => {
     // 不允許使用系統
   };
 
-  const handleAnalyzeClick = async () => {
+  // 是否強制刷新（跳過快取）
+  const handleAnalyzeClick = async (forceRefresh: boolean = false) => {
     setIsLoading(true);
     setError(null);
     setRecommendations([]);
     setSources([]);
     setAnalysisTime(null);
 
+    // 如果強制刷新，先清除快取
+    if (forceRefresh) {
+      clearRecommendationsCache();
+      console.log('🔄 強制刷新：已清除快取，將選擇新的股票');
+    }
+
     // 先獲取市場分析（使用快取減少 API 配額消耗）
     // 市場分析會優先使用 30 分鐘內的快取，不會每次都呼叫 API
     fetchMarketAnalysis();
 
     try {
-      // 使用用戶的篩選設定來獲取 AI 推薦
-      const { recommendations: result, sources: groundingSources } = await getTradingRecommendations(filterSettings);
+      // 使用用戶的篩選設定來獲取 AI 推薦（傳遞 forceRefresh 參數）
+      const { recommendations: result, sources: groundingSources } = await getTradingRecommendations(filterSettings, forceRefresh);
       if (result && result.length > 0) {
         // First, get the initial "live" prices for the recommendations
         const initialPrices = await fetchInitialLivePrices(result);
@@ -367,12 +374,21 @@ const App: React.FC = () => {
                       ⚙️ 篩選設定
                     </button>
                     <button
-                      onClick={handleAnalyzeClick}
+                      onClick={() => handleAnalyzeClick(false)}
                       disabled={isLoading}
-                      className="inline-flex items-center justify-center px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800/50 disabled:cursor-not-allowed text-white font-semibold rounded-lg shadow-md transition-colors duration-300"
+                      className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800/50 disabled:cursor-not-allowed text-white font-semibold rounded-lg shadow-md transition-colors duration-300"
+                      title="使用快取（如有）"
                     >
-                      <RefreshIcon className="w-5 h-5 mr-2" />
-                      重新分析
+                      <RefreshIcon className="w-5 h-5 mr-1" />
+                      分析
+                    </button>
+                    <button
+                      onClick={() => handleAnalyzeClick(true)}
+                      disabled={isLoading}
+                      className="inline-flex items-center justify-center px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-800/50 disabled:cursor-not-allowed text-white font-semibold rounded-lg shadow-md transition-colors duration-300"
+                      title="強制選擇新股票（跳過快取）"
+                    >
+                      🔄 換一批
                     </button>
                   </div>
                 </div>

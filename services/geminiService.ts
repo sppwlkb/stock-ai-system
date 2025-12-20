@@ -8,7 +8,10 @@ const BACKEND_API_URL = '/api/gemini';
 
 // ⚡ 股票推薦快取設定（減少 API 配額消耗）
 const RECOMMENDATIONS_CACHE_KEY = 'stockRecommendationsCache';
-const RECOMMENDATIONS_CACHE_DURATION_MS = 30 * 60 * 1000; // 30 分鐘快取
+const RECOMMENDATIONS_CACHE_DURATION_MS = 5 * 60 * 1000; // 5 分鐘快取（縮短以增加多樣性）
+
+// 🔄 上次選擇的股票（用於避免重複選股）
+let lastSelectedTickers: string[] = [];
 
 interface RecommendationsCacheData {
   data: {
@@ -69,6 +72,15 @@ function setCachedRecommendations(
   } catch (e) {
     console.warn('無法儲存股票推薦快取:', e);
   }
+}
+
+/**
+ * 清除股票推薦快取（用於強制刷新）
+ */
+export function clearRecommendationsCache(): void {
+  localStorage.removeItem(RECOMMENDATIONS_CACHE_KEY);
+  lastSelectedTickers = [];
+  console.log('🗑️ 已清除股票推薦快取');
 }
 
 // 後端 API 調用函數
@@ -436,20 +448,40 @@ async function retryWithBackoff<T>(operation: () => Promise<T>, retries: number 
 /**
  * 獲取 AI 股票推薦
  * @param filterSettings 用戶篩選設定（可選，預設使用 DEFAULT_FILTER_SETTINGS）
+ * @param forceRefresh 是否強制刷新（跳過快取）
  * @returns AI 推薦的股票清單和資料來源
  */
 export const getTradingRecommendations = async (
-  filterSettings: FilterSettings = DEFAULT_FILTER_SETTINGS
+  filterSettings: FilterSettings = DEFAULT_FILTER_SETTINGS,
+  forceRefresh: boolean = false
 ): Promise<{ recommendations: StockRecommendation[], sources: GroundingChunk[] }> => {
+
+  // 🔄 生成唯一的隨機種子
+  const randomSeed = Date.now() + Math.random();
+  console.log(`🎲 隨機種子: ${randomSeed}`);
+  console.log(`📊 上次選股: ${lastSelectedTickers.length > 0 ? lastSelectedTickers.join(', ') : '無'}`);
+
   // ⚡ 優先檢查快取（減少 API 配額消耗）
-  const cached = getCachedRecommendations(filterSettings);
-  if (cached) {
-    return cached;
+  if (!forceRefresh) {
+    const cached = getCachedRecommendations(filterSettings);
+    if (cached) {
+      console.log('📦 使用快取結果（如需新選股，請等待 5 分鐘或強制刷新）');
+      return cached;
+    }
+  } else {
+    console.log('🔄 強制刷新：跳過快取');
+    // 清除快取
+    localStorage.removeItem(RECOMMENDATIONS_CACHE_KEY);
   }
 
   try {
     // 根據用戶設定動態生成系統指令
     const systemInstruction = generateSystemInstruction(filterSettings);
+
+    // 生成避免重複選股的指令
+    const avoidStocksInstruction = lastSelectedTickers.length > 0
+      ? `\n\n🚫 **禁止選擇以下股票（上次已選過）**：${lastSelectedTickers.join('、')}\n必須選擇與上述完全不同的股票！`
+      : '';
 
     const fullPrompt = `${systemInstruction}
 
@@ -463,10 +495,12 @@ export const getTradingRecommendations = async (
 - ✅ 只能從價格 ${filterSettings.priceRange.min} ~ ${filterSettings.priceRange.max} 元的股票中挑選
 
 請掃描今日台股市場中，**股價 ${filterSettings.priceRange.min} ~ ${filterSettings.priceRange.max} 元**的股票，挖掘具有「爆發潛力」的妖股標的。
+${avoidStocksInstruction}
 
-🎲 **多樣性要求**
-- 隨機種子：${Date.now()}（每次分析必須選擇**完全不同**的股票組合）
-- ❌ 禁止每次都選相同的熱門股
+🎲 **多樣性要求（極度重要！）**
+- 唯一隨機種子：${randomSeed}
+- ⛔ **禁止連續兩次分析選擇相同的股票！**
+- ❌ 禁止每次都選相同的熱門股（如聯電、華碩、鴻準、智邦）
 - ✅ 優先發掘冷門但技術面強勢的潛力股
 - ✅ 從不同產業類股中選擇（電子、金融、傳產、生技等）
 - ✅ 考慮中小型股、上櫃股票
@@ -669,6 +703,10 @@ export const getTradingRecommendations = async (
     }
 
     const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks as GroundingChunk[] || [];
+
+    // 🔄 記錄本次選擇的股票（用於下次避免重複）
+    lastSelectedTickers = filteredRecommendations.map(r => `${r.stockName}(${r.ticker})`);
+    console.log(`✅ 本次選股: ${lastSelectedTickers.join(', ')}`);
 
     // ⚡ 儲存到快取（減少 API 配額消耗）
     setCachedRecommendations(filterSettings, filteredRecommendations, sources);
