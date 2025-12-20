@@ -83,6 +83,34 @@ export function clearRecommendationsCache(): void {
   console.log('🗑️ 已清除股票推薦快取');
 }
 
+/**
+ * 🔍 獲取真實股價（透過後端 API 避免 CORS）
+ * @param ticker 股票代碼
+ * @param exchange 交易所 ('tse' 上市 / 'otc' 上櫃)
+ * @returns 真實股價，失敗時返回 0
+ */
+async function getRealStockPrice(ticker: string, exchange: 'TWSE' | 'TPEX' = 'TWSE'): Promise<number> {
+  try {
+    const ex = exchange === 'TPEX' ? 'otc' : 'tse';
+    const response = await fetch(`/api/stock-price?ticker=${ticker}&exchange=${ex}`);
+
+    if (!response.ok) {
+      console.warn(`⚠️ 無法獲取 ${ticker} 的真實股價`);
+      return 0;
+    }
+
+    const data = await response.json();
+    if (data.success && data.price > 0) {
+      console.log(`💰 ${ticker} 真實股價: ${data.price} 元`);
+      return data.price;
+    }
+    return 0;
+  } catch (error) {
+    console.warn(`⚠️ 獲取 ${ticker} 股價失敗:`, error);
+    return 0;
+  }
+}
+
 // 後端 API 調用函數
 async function callBackendAPI(prompt: string, useGoogleSearch: boolean = false): Promise<any> {
   const response = await fetch(BACKEND_API_URL, {
@@ -673,23 +701,50 @@ ${avoidStocksInstruction}
       };
     });
 
-    // ✅ 驗證邏輯：過濾不符合用戶篩選條件的股票
+    // ✅ 驗證邏輯：使用真實股價過濾不符合用戶篩選條件的股票
     const { min: minPrice, max: maxPrice } = filterSettings.priceRange;
-    const filteredRecommendations = allRecommendations.filter(rec => {
-      const price = rec.currentPrice;
+    console.log(`🔍 開始驗證股價範圍: ${minPrice} ~ ${maxPrice} 元`);
+
+    // 📊 同時獲取所有股票的真實股價（平行請求）
+    const pricePromises = allRecommendations.map(async (rec) => {
+      const realPrice = await getRealStockPrice(rec.ticker, rec.exchange as 'TWSE' | 'TPEX');
+      return { rec, realPrice };
+    });
+
+    const priceResults = await Promise.all(pricePromises);
+
+    // 使用真實股價過濾並更新 currentPrice
+    const filteredRecommendations: StockRecommendation[] = [];
+
+    for (const { rec, realPrice } of priceResults) {
+      // 優先使用真實股價，若獲取失敗則使用 AI 給的價格
+      const priceToCheck = realPrice > 0 ? realPrice : rec.currentPrice;
+
+      // 如果真實股價與 AI 給的價格差距過大，用真實股價
+      if (realPrice > 0 && Math.abs(realPrice - rec.currentPrice) / realPrice > 0.1) {
+        console.warn(
+          `⚠️ 修正 ${rec.stockName}(${rec.ticker}) 股價: AI給 ${rec.currentPrice} → 真實 ${realPrice} 元`
+        );
+        rec.currentPrice = realPrice;
+        rec.entryPoint = realPrice; // 同步修正進場價
+      }
 
       // 檢查股價是否在用戶設定的範圍內
-      const isPriceValid = price >= minPrice && price <= maxPrice;
+      const isPriceValid = priceToCheck >= minPrice && priceToCheck <= maxPrice;
 
       if (!isPriceValid) {
         console.warn(
-          `⚠️ 過濾掉不符合價格範圍的股票: ${rec.stockName} (${rec.ticker})，` +
-          `股價 ${price} 元不在 ${minPrice}~${maxPrice} 範圍內`
+          `❌ 過濾: ${rec.stockName}(${rec.ticker}) 股價 ${priceToCheck.toFixed(2)} 元` +
+          ` 不在 ${minPrice}~${maxPrice} 範圍內`
         );
+      } else {
+        console.log(
+          `✅ 通過: ${rec.stockName}(${rec.ticker}) 股價 ${priceToCheck.toFixed(2)} 元` +
+          ` 在 ${minPrice}~${maxPrice} 範圍內`
+        );
+        filteredRecommendations.push(rec);
       }
-
-      return isPriceValid;
-    });
+    }
 
     // 如果過濾後沒有符合條件的股票，給出警告
     if (filteredRecommendations.length === 0 && allRecommendations.length > 0) {
@@ -700,11 +755,9 @@ ${avoidStocksInstruction}
     }
 
     // 記錄過濾結果
-    if (filteredRecommendations.length < allRecommendations.length) {
-      console.log(
-        `📊 篩選結果：AI 推薦 ${allRecommendations.length} 支 → 符合條件 ${filteredRecommendations.length} 支`
-      );
-    }
+    console.log(
+      `📊 最終篩選結果：AI 推薦 ${allRecommendations.length} 支 → 符合條件 ${filteredRecommendations.length} 支`
+    );
 
     const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks as GroundingChunk[] || [];
 
