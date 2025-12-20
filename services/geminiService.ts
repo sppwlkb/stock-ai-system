@@ -659,11 +659,25 @@ ${avoidStocksInstruction}
       );
 
       // 🔧 如果股票名稱被修正，也要修正 reason 中的錯誤名稱
-      let correctedReason = rec.reason || 'No reason provided.';
+      let correctedReason = rec.reason || '';
 
       // 📊 診斷日誌：顯示 AI 返回的 reason 長度和前 200 字
       console.log(`📝 ${rec.stockName}(${rec.ticker}) reason 長度: ${correctedReason.length} 字`);
       console.log(`📝 ${rec.stockName} reason 前 300 字: ${correctedReason.substring(0, 300)}...`);
+
+      // 🔧 檢查 reason 是否太短或無效（小於 100 字視為無效）
+      if (!correctedReason || correctedReason.length < 100 || correctedReason === '...') {
+        console.warn(`⚠️ ${rec.stockName}(${rec.ticker}) reason 無效，生成替代內容`);
+        correctedReason = `【${rec.stockName} (${rec.ticker}) 分析摘要】\n\n` +
+          `📊 進場價位：${rec.entryPoint || rec.currentPrice || 'N/A'} 元\n` +
+          `🎯 目標價位：${rec.exitPoint || 'N/A'} 元\n` +
+          `⛔ 停損價位：${rec.stopLoss || 'N/A'} 元\n\n` +
+          `⚠️ 注意：AI 未能生成完整的分析理由，請自行查閱相關新聞和技術分析資料。\n\n` +
+          `💡 建議查詢：\n` +
+          `• Yahoo 股市：https://tw.stock.yahoo.com/quote/${rec.ticker}.TW\n` +
+          `• 鉅亨網：https://www.cnyes.com/twstock/${rec.ticker}\n` +
+          `• Goodinfo：https://goodinfo.tw/tw/StockDetail.asp?STOCK_ID=${rec.ticker}`;
+      }
       if (validated.corrected && rec.stockName && rec.stockName !== validated.name) {
         // 替換 reason 中的錯誤股票名稱
         correctedReason = correctedReason.replace(
@@ -686,18 +700,44 @@ ${avoidStocksInstruction}
         .replace(/\n{3,}/g, '\n\n')
         .trim();
 
+      // 🔧 修正缺失的交易數據
+      const entryPoint = rec.entryPoint || rec.currentPrice || 0;
+      let exitPoint = rec.exitPoint || 0;
+      let stopLoss = rec.stopLoss || 0;
+
+      // 如果 exitPoint 為 0 或不合理，自動計算（假設 10% 獲利目標）
+      if (exitPoint <= 0 || exitPoint <= entryPoint) {
+        exitPoint = Math.round(entryPoint * 1.10 * 100) / 100; // +10% 目標價
+        console.warn(`⚠️ 修正 ${validated.name}(${validated.ticker}) exitPoint: 0 → ${exitPoint}`);
+      }
+
+      // 如果 stopLoss 為 0 或不合理，自動計算（假設 5% 停損）
+      if (stopLoss <= 0 || stopLoss >= entryPoint) {
+        stopLoss = Math.round(entryPoint * 0.95 * 100) / 100; // -5% 停損
+        console.warn(`⚠️ 修正 ${validated.name}(${validated.ticker}) stopLoss: 0 → ${stopLoss}`);
+      }
+
+      // 計算獲利點數
+      const profitPoints = rec.profitPoints || Math.round((exitPoint - entryPoint) * 100) / 100;
+
+      // 計算建議股數（基於 10 萬資金）
+      const sharesToBuy = rec.sharesToBuy || Math.floor(100000 / entryPoint / 1000) * 1000 || 1000;
+
+      // 計算預估獲利
+      const profitTWD = rec.profitTWD || Math.round(profitPoints * sharesToBuy);
+
       return {
         stockName: validated.name,
         ticker: validated.ticker,
         exchange: rec.exchange || 'TWSE',
-        entryPoint: rec.entryPoint || 0,
-        exitPoint: rec.exitPoint || 0,
-        profitPoints: rec.profitPoints || 0,
-        sharesToBuy: rec.sharesToBuy || 0,
-        profitTWD: rec.profitTWD || 0,
+        entryPoint: entryPoint,
+        exitPoint: exitPoint,
+        profitPoints: profitPoints,
+        sharesToBuy: sharesToBuy,
+        profitTWD: profitTWD,
         reason: correctedReason,
-        stopLoss: rec.stopLoss || 0,
-        currentPrice: rec.currentPrice || rec.entryPoint || 0,
+        stopLoss: stopLoss,
+        currentPrice: rec.currentPrice || entryPoint,
         historicalData: [],
       };
     });
