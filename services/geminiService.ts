@@ -81,7 +81,8 @@ async function callBackendAPI(prompt: string, useGoogleSearch: boolean = false):
     body: JSON.stringify({
       prompt: prompt,
       model: 'gemini-2.0-flash',  // 使用穩定的免費模型
-      temperature: useGoogleSearch ? 0.4 : 1.0,
+      // 提高 temperature 增加選股隨機性，避免每次選到相同股票
+      temperature: useGoogleSearch ? 0.8 : 1.0,
       useGoogleSearch: useGoogleSearch
     })
   });
@@ -294,6 +295,12 @@ export const getTradingRecommendations = async (
 
 🎯 **執行任務**：
 請掃描今日台股市場，找出股價 ${filterSettings.priceRange.min} ~ ${filterSettings.priceRange.max} 元之間，技術型態最強勢的「波段交易」標的。
+
+🎲 **重要：增加選股多樣性**
+- 隨機種子：${Date.now()}（每次分析都應選擇**不同**的股票組合）
+- 台股有 1700+ 支股票，請從中**隨機選擇**符合條件的標的
+- 避免每次都選擇相同的熱門股（如台積電、鴻海、聯發科等）
+- 優先發掘**冷門但技術面強勢**的潛力股
 
 📋 **篩選條件**：
 - 推薦數量：${filterSettings.stockCount} 支股票
