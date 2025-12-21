@@ -620,7 +620,13 @@ ${avoidStocksInstruction}
     const response = await retryWithBackoff(() => callBackendAPI(fullPrompt, true));
 
     const text = response.text;
-    
+
+    // 🔧 檢測 AI 是否返回純文字模板而非 JSON
+    if (text && (text.includes('[股票名稱]') || text.includes('XX') || text.includes('### 1.'))) {
+      console.error('❌ AI 返回純文字模板而非 JSON：', text.substring(0, 500));
+      throw new Error('AI 返回了說明文字而非實際選股結果。這可能是 API 配額限制或 prompt 過長導致。請稍後再試。');
+    }
+
     // Extract JSON from the response text, which might be wrapped in markdown
     const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
     const match = text?.match(jsonRegex);
@@ -628,7 +634,12 @@ ${avoidStocksInstruction}
     let parsedJson: any[] = [];
 
     if (match && match[1]) {
-      parsedJson = JSON.parse(match[1]);
+      try {
+        parsedJson = JSON.parse(match[1]);
+      } catch (parseError) {
+        console.error('❌ JSON 解析失敗（在 markdown 區塊內）:', parseError);
+        throw new Error('AI 回應的 JSON 格式有誤，無法解析。請稍後再試。');
+      }
     } else {
       // Fallback if no markdown code block is found, try to parse the whole string
       try {
@@ -640,12 +651,28 @@ ${avoidStocksInstruction}
             parsedJson = JSON.parse(jsonString);
         } else {
            // If strict JSON parsing fails, check if it's an empty result or text apology
-           console.warn("Valid JSON not found in response:", text);
-           throw new Error("AI 未能回傳有效的 JSON 格式數據。");
+           console.warn("Valid JSON not found in response:", text?.substring(0, 500));
+           throw new Error("AI 未能回傳有效的 JSON 格式數據。請檢查 API 連線或稍後再試。");
         }
       } catch (e) {
-        console.error("Failed to parse JSON response from Gemini:", text);
-        throw new Error("AI 回應的格式不正確，無法解析。請稍後再試。");
+        console.error("Failed to parse JSON response from Gemini:", text?.substring(0, 500));
+        throw new Error("AI 回應的格式不正確，無法解析。這可能是 API 過載，請稍等 1-2 分鐘後再試。");
+      }
+    }
+
+    // 🔧 驗證解析結果是否為有效陣列
+    if (!Array.isArray(parsedJson) || parsedJson.length === 0) {
+      console.error('❌ AI 返回空陣列或非陣列:', parsedJson);
+      throw new Error('AI 未能推薦任何股票。請嘗試放寬篩選條件（如擴大價格範圍）。');
+    }
+
+    console.log(`✅ 成功解析 ${parsedJson.length} 支股票推薦`);
+
+    // 🔧 驗證每支股票是否有必要欄位
+    for (let i = 0; i < parsedJson.length; i++) {
+      const rec = parsedJson[i];
+      if (!rec.ticker || !rec.stockName) {
+        console.warn(`⚠️ 第 ${i + 1} 支股票缺少必要欄位:`, rec);
       }
     }
     
